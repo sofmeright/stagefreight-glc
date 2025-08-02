@@ -13,6 +13,11 @@ spec:
     gitlab_domain:
       description: "GitLab domain"
       default: "https://gitlab.prplanit.com"
+    gitlab_token:
+      default: ''
+      description: 'Token for authenticating GitLab API calls.'
+      _input_group_name: Gitlab Job Config
+      _input_group_desc: Inputs that configure GitLab Job behavior
     badge-release-status_output:
       description: 'Path to store "badge-release_status.svg" within parent pipelines repo.'
       default: "assets/badge-release_status.svg"
@@ -29,6 +34,7 @@ variables:
   DOCKER_IMAGE: "$[[ inputs.docker_image ]]"
   DOCKER_TAG: "$[[ inputs.docker_tag ]]"
   GITLAB_DOMAIN: "$[[ inputs.gitlab_domain ]]"
+  GITLAB_TOKEN: $[[ inputs.gitlab_token ]]
 
   DOCKER_HOST: "tcp://docker:2376"
   DOCKER_TLS_VERIFY: "1"
