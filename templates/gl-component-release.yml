@@ -1,0 +1,42 @@
+# GitLab CI Component: ansible-release
+
+component:
+  name: "release-gl-component"
+  description: "Publishes GitLab releases, updates badges, and injects input maps into README"
+  inputs:
+    gitlab_domain:
+      description: "Base GitLab domain (used for badge & catalog links)"
+      default: "https://gitlab.prplanit.com"
+
+    component_spec_file:
+      description: "Path to component spec file (for input parsing)"
+      default: "templates/run.yml"
+
+    readme_file:
+      description: "README file to inject Markdown input map into"
+      default: "README.md"
+
+    output_md_file:
+      description: "Temporary Markdown file path to generate"
+      default: "artifacts/component_inputs.md"
+
+    badge_template:
+      description: "SVG template for badge generation"
+      default: "assets/badge-release-generic.svg"
+
+    badge_output:
+      description: "Final badge output path"
+      default: "assets/badge-release-status.svg"
+
+    branch_name:
+      description: "Branch to push badge/README changes to"
+      default: "main"
+
+stages:
+  - release
+
+include:
+  - local: jobs/gitlab/generate_release_notes.yml
+  - local: jobs/gitlab/create_release.yml
+  - local: jobs/gitlab/update_release_badge.yml
+  - local: jobs/gitlab/generate_readme_component_inputs.yml
