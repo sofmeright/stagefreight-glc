@@ -29,6 +29,7 @@ stages:
   - release
 
 variables:
+  BADGE_RELEASE_STATS_OUT: "$[[ inputs.badge-release-status_output ]]"
   DOCKER_HUB_USERNAME: "$[[ inputs.docker_hub_user ]]"
   DOCKER_HUB_PASSWORD: "$[[ inputs.docker_hub_pass ]]"
   DOCKER_IMAGE: "$[[ inputs.docker_image ]]"
@@ -131,9 +132,9 @@ update-release-badge:
       STATUS="running"; COLOR="#dfb317"
     fi
     mkdir -p assets
-    sed -e "s|{{COLOR}}|$COLOR|g" -e "s|{{STATUS}}|$STATUS|g" "assets/badge-release-generic.svg" > "$[[ inputs.badge-release-status_output ]]"
-    CONTENT_BASE64=$(base64 -w 0 "$[[ inputs.badge-release-status_output ]]")
-    ENCODED_FILE_PATH=$(echo "$[[ inputs.badge-release-status_output ]]" | sed 's/\//%2F/g')
+    sed -e "s|{{COLOR}}|$COLOR|g" -e "s|{{STATUS}}|$STATUS|g" "assets/badge-release-generic.svg" > "$BADGE_RELEASE_STATS_OUT"
+    CONTENT_BASE64=$(base64 -w 0 "$BADGE_RELEASE_STATS_OUT")
+    ENCODED_FILE_PATH=$(echo "$BADGE_RELEASE_STATS_OUT" | sed 's/\//%2F/g')
     curl --request PUT --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
       --header "Content-Type: application/json" \
       --data "{
