@@ -31,8 +31,9 @@ spec:
 stages:
   - release
 
-include:
-  - local: jobs/gitlab/components/generate-readme_c_inputs.yml
-  - local: jobs/gitlab/create-release.yml
-  - local: jobs/gitlab/generate-release_notes.yml
-  - local: jobs/gitlab/update-release_pipeline_status_badge.yml
+default:
+  include:
+    - local: jobs/gitlab/components/generate-readme_c_inputs.yml
+    - local: jobs/gitlab/create-release.yml
+    - local: jobs/gitlab/generate-release_notes.yml
+    - local: jobs/gitlab/update-release_pipeline_status_badge.yml
