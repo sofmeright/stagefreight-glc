@@ -1,6 +1,6 @@
 # GitLab CI Component: ansible-release
 
-component:
+spec:
   name: "gl-component-release"
   description: "Publishes GitLab releases, updates badges, and injects input maps into README"
   inputs:
