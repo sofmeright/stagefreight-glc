@@ -1,0 +1,9 @@
+export_dependencies:
+  stage: export
+  script:
+    - echo "Exporting scripts and assets..."
+  artifacts:
+    paths:
+      - scripts/
+      - assets/
+    expire_in: 1 hour
