@@ -100,7 +100,7 @@ stages:
     - Extracting tag message and commit log between tags.
     - Outputs formatted Markdown release notes.
 
-2. generate-component_inputs_table.sh
+2. `generate-component_inputs_table.sh`
 </br>Bash script that:
     - Converts the component inputs YAML to JSON.
     - Uses jq to group inputs by _input_group_name and format a Markdown table with columns: Name, Required, Default, Description.
