@@ -47,14 +47,16 @@ spec:
 ---
 
 generate_release_notes:
+  artifacts:
+    paths:
+      - artifacts/
+      - assets/
+      - scripts/
+    expire_in: 1 hour
   stage: release
   image: alpine:3.22.1
   only:
     - tags
-  artifacts:
-    paths:
-      - release.md
-    expire_in: 1 hour
   before_script:
     - chmod +x ./scripts/gitlab/generate-release_notes.sh
   script:
@@ -64,6 +66,12 @@ generate_release_notes:
     - echo "✅ release.md created successfully"
 
 create-release:
+  artifacts:
+    paths:
+      - artifacts/
+      - assets/
+      - scripts/
+    expire_in: 1 hour
   stage: release
   image: alpine:3.22.1
   needs: [generate_release_notes]
@@ -130,7 +138,7 @@ update_release_pipeline_status_badge:
   stage: release
   image: alpine:3.22.1
   only: [tags]
-  needs: [create-release]
+  needs: [generate_release_notes, create-release]
   script: |
     apk add --no-cache curl jq bash coreutils
     JOB_STATUSES=$(curl -s --header "PRIVATE-TOKEN: $GITLAB_TOKEN" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/pipelines/$CI_PIPELINE_ID/jobs" | jq -r '.[].status')
