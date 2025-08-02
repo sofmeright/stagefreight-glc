@@ -65,6 +65,9 @@ generate_release_notes:
     - tags
   before_script:
     - apk add --no-cache bash curl git
+      - echo "Listing files for debugging:"
+    - find . -type f
+    - cat ./scripts/gitlab/generate-release_notes.sh
     - chmod +x scripts/gitlab/generate-release_notes.sh
   script:
     - scripts/gitlab/generate-release_notes.sh > release.md
