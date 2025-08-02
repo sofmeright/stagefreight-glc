@@ -12,7 +12,7 @@ spec:
       default:
         - "templates/run.yml"
       description: "Array of component spec files (for README input info)"
-      type: array
+      # type: array
     readme_file:
       default: "README.md"
       description: "README file to inject Markdown input map into"
