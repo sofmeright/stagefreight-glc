@@ -21,6 +21,7 @@ spec:
       default: "assets/badge-release_status.svg"
 
 ---
+
 # Begin CI pipeline jobs
 stages:
   - build

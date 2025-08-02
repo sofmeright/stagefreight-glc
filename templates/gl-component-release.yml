@@ -38,11 +38,12 @@ spec:
       description: 'Token for authenticating GitLab API calls.'
 
 ---
+
 # Begin CI pipeline jobs
 stages:
   - build
   - release
-  
+
 variables:
   GITLAB_TOKEN: $[[ inputs.gitlab_token ]]
 
