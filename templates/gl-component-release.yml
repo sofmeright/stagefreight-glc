@@ -38,11 +38,6 @@ spec:
 
 ---
 
-cache:
-  key: "${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_ID}"
-  paths:
-    - .cache/
-
 # Begin CI pipeline jobs
 stages:
   - build
