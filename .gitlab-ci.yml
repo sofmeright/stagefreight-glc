@@ -8,3 +8,6 @@ include:
       badge_template: "assets/badge-release-generic.svg"
       badge_output: "assets/badge-release-status.svg"
       branch_name: "main"
+
+stages:
+  - release
