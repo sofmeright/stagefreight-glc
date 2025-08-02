@@ -107,6 +107,11 @@ create-release:
         "$CI_API_V4_URL/projects/$CI_PROJECT_ID/releases/$CI_COMMIT_TAG/assets/links"
 
 update-release-badge:
+  artifacts:
+    paths: 
+      - release.md
+      - assets/badge-release-generic.svg
+      - scripts/
   stage: release
   image: alpine:3.22.1
   only: [tags]
@@ -130,7 +135,6 @@ update-release-badge:
     else
       STATUS="running"; COLOR="#dfb317"
     fi
-    mkdir -p assets
     sed -e "s|{{COLOR}}|$COLOR|g" -e "s|{{STATUS}}|$STATUS|g" "assets/badge-release-generic.svg" > "$BADGE_RELEASE_STATS_OUT"
     CONTENT_BASE64=$(base64 -w 0 "$BADGE_RELEASE_STATS_OUT")
     ENCODED_FILE_PATH=$(echo "$BADGE_RELEASE_STATS_OUT" | sed 's/\//%2F/g')
