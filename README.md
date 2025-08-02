@@ -8,7 +8,15 @@ StageFreight is developed by SoFMeRight of PrecisionPlanIT as part of his Ant Pa
 
 ---
 
-Notice: We are in BETA. Currently migrating many items from other repositories to consolidate them into one workflow herein. As its said we have strong ambitions, however we may not achieve all intended features on initial release.
+Notice: We are in BETA. We have strong ambitions, but this takes time.
+> To release the base feature set we will migrate our release pipeline logic from other projects.
+
+Progress:
+- ✅ Docker - Working but some further optimization can be done. (Docker Hub is the only endpoint publishable currently.)
+- 🤷🏽‍♀️ Components - We learned to execute scripts and assets alongside a component. 👍🏽 Unsure if generating a component inputs table setup will work like it did in external testing yet, got a syntax issue earlier but switched gears to Docker.
+- 🚫 Binary (deb/exe/etc.) release management ~ We actually have a project this is done in we forgot about so there is code to be recycled. But we will need time to implement.
+
+When will it be done?: I wish I knew. I wanted these three to have feature parity for what we have done in pipelines before I went to sleep but looks like a little more time.
 
 ---
 
