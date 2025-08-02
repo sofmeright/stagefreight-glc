@@ -19,29 +19,6 @@ spec:
     badge-release-status_output:
       description: 'Path to store "badge-release_status.svg" within parent pipelines repo.'
       default: "assets/badge-release_status.svg"
-  _input_metadata:
-    docker_hub_user:
-      _input_group_name: Ansible Config
-      _input_group_desc: ''
-    docker_hub_pass:
-      _input_group_name: Ansible Config
-      _input_group_desc: ''
-    docker_image:
-      _input_group_name: Ansible Config
-      _input_group_desc: ''
-    docker_tag:
-      _input_group_name: Ansible Config
-      _input_group_desc: ''
-    gitlab_domain:
-      _input_group_name: Ansible Config
-      _input_group_desc: ''
-    gitlab_token:
-      _input_group_name: Ansible Config
-      _input_group_desc: ''
-    badge-release-status_output:
-      _input_group_name: Ansible Config
-      _input_group_desc: ''
-
 
 ---
 # Begin CI pipeline jobs
