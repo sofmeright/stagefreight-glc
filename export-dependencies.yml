@@ -2,7 +2,7 @@ export_dependencies:
   stage: build
   image: alpine:3.22.1
   script:
-    - apk add --no-cache git rsync
+    - apk add --no-cache git rsync tree
     - git clone "https://$CI_SERVER_HOST/components/stagefreight.git" --branch main --depth 1 stagefreight_repo
     - rsync -avz stagefreight_repo/artifacts/ ./artifacts/ || true
     - echo "Copied artifacts:"
@@ -16,6 +16,7 @@ export_dependencies:
     - rsync -avz stagefreight_repo/templates/ ./templates/ || true
     - echo "Copied templates:"
     - ls -l templates
+    - tree artifacts assets scripts templates
   artifacts:
     paths:
       - assets/
