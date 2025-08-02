@@ -1,9 +1,11 @@
 export_dependencies:
-  stage: build
-  script:
-    - echo "Exporting scripts and assets..."
   artifacts:
     paths:
       - scripts/
       - assets/
     expire_in: 1 hour
+  image: alpine:3.22.1
+  only: [tags]
+  stage: build
+  script:
+    - echo "Exporting scripts and assets..."
