@@ -61,14 +61,14 @@ build-image:
     - if: $CI_COMMIT_TAG
 
 generate_release_notes:
+  artifacts:
+    paths: 
+      - assets/
+      - scripts/
+    expire_in: 1 hour
   stage: release
   image: alpine:3.22.1
   only: [tags]
-  artifacts:
-    paths: 
-      - release.md
-      - scripts/gitlab/generate-release_notes.sh
-    expire_in: 1 hour
   only:
     - tags
   before_script:
@@ -82,6 +82,11 @@ generate_release_notes:
     - test -s release.md || (echo "❌ release.md is empty!" && exit 1)
 
 create-release:
+  artifacts:
+    paths: 
+      - assets/
+      - scripts/
+    expire_in: 1 hour
   stage: release
   image: alpine:3.22.1
   only: [tags]
@@ -106,6 +111,11 @@ create-release:
         "$CI_API_V4_URL/projects/$CI_PROJECT_ID/releases/$CI_COMMIT_TAG/assets/links"
 
 update-release-badge:
+  artifacts:
+    paths: 
+      - assets/
+      - scripts/
+    expire_in: 1 hour
   stage: release
   image: alpine:3.22.1
   only: [tags]
@@ -142,8 +152,3 @@ update-release-badge:
         \"encoding\": \"base64\"
       }" \
       "$CI_API_V4_URL/projects/$CI_PROJECT_ID/repository/files/$ENCODED_FILE_PATH"
-  artifacts:
-    paths: 
-      - "$[[ inputs.badge-release-status_output ]]"
-      - assets/badge-release-generic.svg
-    expire_in: 1 hour
