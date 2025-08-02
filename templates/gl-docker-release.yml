@@ -56,8 +56,13 @@ generate_release_notes:
   image: alpine:3.22.1
   only: [tags]
   artifacts:
-    paths: [release.md]
+    paths: 
+      - release.md
+      - scripts/
+      - assets/
     expire_in: 1 hour
+  only:
+    - tags
   before_script:
     - apk add --no-cache bash curl git
     - chmod +x scripts/gitlab/generate-release_notes.sh
