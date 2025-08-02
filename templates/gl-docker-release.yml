@@ -70,8 +70,6 @@ generate_release_notes:
       - assets/
       - scripts/
     expire_in: 1 hour
-  only:
-    - tags
   before_script:
     - apk add --no-cache bash curl git
     - echo "Listing files for debugging"

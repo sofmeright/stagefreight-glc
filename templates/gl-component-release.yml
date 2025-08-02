@@ -13,18 +13,11 @@ spec:
         - "templates/run.yml"
       description: "Array of component spec files (for README input info)"
       type: array
-    output_md_file:
-      default: "artifacts/component_inputs.md"
-      description: "Location to store generated component info Markdown artifact."
     readme_file:
       default: "README.md"
       description: "README file to inject Markdown input map into"
     # input_section_name- GitLab CI/CD Inputs
     # input_section_desc- Inputs that configure GitLab Job behavior
-    artifacts:
-      default: []
-      description: 'An array of paths to preserve as CI/CD artifacts.'
-      type: array
     branch_name:
       default: "main"
       description: "Branch to push badge/README changes to"
@@ -68,9 +61,9 @@ generate_readme_component_inputs:
     - yq '.spec.inputs' "$[[ inputs.component_spec_file ]]" > artifacts/_inputs_raw.yaml
     - sed -i '/^---$/,$d' artifacts/_inputs_raw.yaml
     - chmod +x scripts\gitlab\components\generate-component_inputs_table.sh
-    - ./scripts\gitlab\components\generate-component_inputs_table.sh artifacts/_inputs_raw.yaml "$[[ inputs.output_md_file ]]"
+    - ./scripts\gitlab\components\generate-component_inputs_table.sh artifacts/_inputs_raw.yaml "assets/badge-release_status.svg"
     - >
-      awk -v start="<!-- START_C_INPUTS_MAP -->" -v end="<!-- END_C_INPUTS_MAP -->" -v content="$(sed 's/\\/\\\\/g; s/"/\\"/g' $[[ inputs.output_md_file ]] | awk '{ print "echo \"" $0 "\"" }')" '
+      awk -v start="<!-- START_C_INPUTS_MAP -->" -v end="<!-- END_C_INPUTS_MAP -->" -v content="$(sed 's/\\/\\\\/g; s/"/\\"/g' assets/badge-release_status.svg | awk '{ print "echo \"" $0 "\"" }')" '
         BEGIN {inblock=0}
         $0 ~ start { print; system(content); inblock=1; next }
         $0 ~ end { inblock=0 }
@@ -88,8 +81,6 @@ generate_readme_component_inputs:
           \"encoding\": \"base64\"
         }"
         "$CI_API_V4_URL/projects/$CI_PROJECT_ID/repository/files/$ENCODED_FILE_PATH"
-  artifacts:
-    paths: ["$[[ inputs.output_md_file ]]"]
 
 generate_release_notes:
   artifacts:
