@@ -9,8 +9,7 @@ spec:
       default: "assets/badge-release-status.svg"
       description: "Final badge output path"
     component_spec_file:
-      default:
-        - "templates/run.yml"
+      default: "templates/gl-component-release.yml"
       description: "Array of component spec files (for README input info)"
       # type: array
     readme_file:
@@ -52,6 +51,7 @@ stages:
 variables:
   GITLAB_DOMAIN: $[[ inputs.gitlab_domain ]]
   GITLAB_TOKEN: $[[ inputs.gitlab_token ]]
+  README_FILE: $[[ inputs.readme_file ]]
 
 generate_readme_component_inputs:
   artifacts:
@@ -60,6 +60,9 @@ generate_readme_component_inputs:
       - assets/
       - scripts/
       - templates/
+      - README.md
+      - release.md
+      - $[[ inputs.badge_output ]]
     expire_in: 1 hour
   stage: release
   image: alpine:3.22.1
@@ -89,8 +92,8 @@ generate_readme_component_inputs:
         $0 ~ start { print; system(content); inblock=1; next }
         $0 ~ end { inblock=0 }
         !inblock { print }
-      ' "$[[ inputs.readme_file ]]" > updated_readme.md
-    - CONTENT_BASE64=$(base64 -w 0 updated_readme.md)
+      ' "$README_FILE" > artifacts/updated_readme.md
+    - CONTENT_BASE64=$(base64 -w 0 artifacts/updated_readme.md)
     - ENCODED_FILE_PATH=$(printf '%s' "$[[ inputs.readme_file ]]" | jq -s -R -r @uri)
     - >
       curl --request PUT --header "PRIVATE-TOKEN: $GITLAB_TOKEN"
@@ -109,7 +112,10 @@ generate_release_notes:
       - artifacts/
       - assets/
       - scripts/
+      - templates/
+      - README.md
       - release.md
+      - $[[ inputs.badge_output ]]
     expire_in: 1 hour
   stage: release
   image: alpine:3.22.1
@@ -131,6 +137,10 @@ create-release:
       - artifacts/
       - assets/
       - scripts/
+      - templates/
+      - README.md
+      - release.md
+      - $[[ inputs.badge_output ]]
     expire_in: 1 hour
   stage: release
   image: alpine:3.22.1
@@ -163,7 +173,10 @@ update_release_pipeline_status_badge:
       - artifacts/
       - assets/
       - scripts/
-      - "$[[ inputs.badge_output ]]"
+      - templates/
+      - README.md
+      - release.md
+      - $[[ inputs.badge_output ]]
     expire_in: 1 hour
   stage: release
   image: alpine:3.22.1
