@@ -10,7 +10,6 @@ include:
       component_spec_file: 
         - "templates/gl-component-release.yml"
       readme_file: "README.md"
-      output_md_file: "artifacts/component_inputs.md"
       badge_template: "assets/badge-release-generic.svg"
       badge_output: "assets/badge-release-status.svg"
       branch_name: "main"
