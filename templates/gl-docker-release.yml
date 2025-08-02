@@ -60,9 +60,9 @@ generate_release_notes:
     expire_in: 1 hour
   before_script:
     - apk add --no-cache bash curl git
-    - chmod +x ./scripts/gitlab/generate-release_notes.sh
+    - chmod +x scripts/gitlab/generate-release_notes.sh
   script:
-    - ./scripts/gitlab/generate-release_notes.sh > release.md
+    - scripts/gitlab/generate-release_notes.sh > release.md
     - test -s release.md || (echo "❌ release.md is empty!" && exit 1)
 
 create-release:
