@@ -4,16 +4,16 @@ export_dependencies:
   script:
     - apk add --no-cache git rsync
     - git clone "https://$CI_SERVER_HOST/components/stagefreight.git" --branch main --depth 1 stagefreight_repo
-    - rsync -avz stagefreight_repo/artifacts/ ./artifacts/
+    - rsync -avz stagefreight_repo/artifacts/ ./artifacts/ || true
     - echo "Copied artifacts:"
     - ls -l artifacts
-    - rsync -avz stagefreight_repo/assets/ ./assets/
+    - rsync -avz stagefreight_repo/assets/ ./assets/ || true
     - echo "Copied assets:"
     - ls -l assets
-    - rsync -avz stagefreight_repo/scripts/ ./scripts/
+    - rsync -avz stagefreight_repo/scripts/ ./scripts/ || true
     - echo "Copied scripts:"
     - ls -l scripts
-    - rsync -avz stagefreight_repo/templates/ ./templates/
+    - rsync -avz stagefreight_repo/templates/ ./templates/ || true
     - echo "Copied templates:"
     - ls -l templates
   artifacts:
