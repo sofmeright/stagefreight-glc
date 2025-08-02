@@ -24,8 +24,8 @@ stages:
   - release
 
 variables:
-  DOCKER_HUB_USERNAME: "$[[ docker_hub_user ]]"
-  DOCKER_HUB_PASSWORD: "$[[ docker_hub_pass ]]"
+  DOCKER_HUB_USERNAME: "$[[ inputs.docker_hub_user ]]"
+  DOCKER_HUB_PASSWORD: "$[[ inputs.docker_hub_pass ]]"
   DOCKER_HOST: "tcp://docker:2376"
   DOCKER_TLS_VERIFY: "1"
   DOCKER_CERT_PATH: "/certs/client"
