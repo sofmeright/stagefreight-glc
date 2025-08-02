@@ -115,7 +115,7 @@ update-release-badge:
   stage: release
   image: alpine:3.22.1
   only: [tags]
-  needs: [create-release]
+  needs: [create-release, generate_release_notes]
   script: |
     set -e
     apk add --no-cache curl jq bash coreutils
