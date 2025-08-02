@@ -62,8 +62,7 @@ generate_release_notes:
   artifacts:
     paths: 
       - release.md
-      - scripts/
-      - assets/
+      - scripts/gitlab/generate-release_notes.sh
     expire_in: 1 hour
   only:
     - tags
@@ -139,5 +138,7 @@ update-release-badge:
       }" \
       "$CI_API_V4_URL/projects/$CI_PROJECT_ID/repository/files/$ENCODED_FILE_PATH"
   artifacts:
-    paths: ["$[[ inputs.badge-release-status_output ]]"]
+    paths: 
+      - "$[[ inputs.badge-release-status_output ]]"
+      - assets/badge-release-generic.svg
     expire_in: 1 hour
