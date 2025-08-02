@@ -159,7 +159,11 @@ create-release:
 
 update_release_pipeline_status_badge:
   artifacts:
-    paths: ["$[[ inputs.badge_output ]]"]
+    paths:
+      - artifacts/
+      - assets/
+      - scripts/
+      - "$[[ inputs.badge_output ]]"
     expire_in: 1 hour
   stage: release
   image: alpine:3.22.1
