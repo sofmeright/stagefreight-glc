@@ -8,7 +8,7 @@ StageFreight is developed by SoFMeRight of PrecisionPlanIT as part of his Ant Pa
 
 ---
 
-Notice: We are in BETA. We have strong ambitions, but this takes time.
+Notice: We are not even in "BETA", this is early stages. We have strong ambitions, but this takes time.
 > To release the base feature set we will migrate our release pipeline logic from other projects.
 
 Progress:
