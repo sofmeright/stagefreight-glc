@@ -2,23 +2,38 @@ spec:
   inputs:
     docker_hub_user:
       description: "Docker Hub username for image publishing"
+      _input_group_name: Ansible Config
+      _input_group_desc: ''
     docker_hub_pass:
       description: "Docker Hub password or token for authentication"
+      _input_group_name: Ansible Config
+      _input_group_desc: ''
     docker_image:
       description: "Docker image name"
       default: "prplanit/stagefreight"
+      _input_group_name: Ansible Config
+      _input_group_desc: ''
     docker_tag:
       description: "Docker tag to use (usually CI_COMMIT_TAG)"
       default: "$CI_COMMIT_TAG"
+      _input_group_name: Ansible Config
+      _input_group_desc: ''
     gitlab_domain:
       description: "GitLab domain"
       default: "https://gitlab.prplanit.com"
+      _input_group_name: Ansible Config
+      _input_group_desc: ''
     gitlab_token:
       default: ''
       description: 'Token for authenticating GitLab API calls.'
+      _input_group_name: Ansible Config
+      _input_group_desc: ''
     badge-release-status_output:
       description: 'Path to store "badge-release_status.svg" within parent pipelines repo.'
       default: "assets/badge-release_status.svg"
+      _input_group_name: Ansible Config
+      _input_group_desc: ''
+
 
 ---
 # Begin CI pipeline jobs
