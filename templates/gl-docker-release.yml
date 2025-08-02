@@ -1,5 +1,9 @@
 spec:
   inputs:
+    docker_hub_user:
+      description: "Docker Hub username for image publishing"
+    docker_hub_pass:
+      description: "Docker Hub password or token for authentication"
     docker_image:
       description: "Docker image name"
       default: "prplanit/stagefreight"
@@ -20,6 +24,8 @@ stages:
   - release
 
 variables:
+  DOCKER_HUB_USERNAME: "$[[ docker_hub_user ]]"
+  DOCKER_HUB_PASSWORD: "$[[ docker_hub_pass ]]"
   DOCKER_HOST: "tcp://docker:2376"
   DOCKER_TLS_VERIFY: "1"
   DOCKER_CERT_PATH: "/certs/client"
