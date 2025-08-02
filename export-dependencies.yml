@@ -11,8 +11,10 @@ export_dependencies:
     - ls -l assets
   artifacts:
     paths:
-      - scripts/
       - assets/
+      - artifacts/
+      - scripts/
+      - templates/
     expire_in: 1 hour
   only:
     - tags
