@@ -61,14 +61,15 @@ build-image:
     - if: $CI_COMMIT_TAG
 
 generate_release_notes:
-  artifacts:
-    paths: 
-      - assets/
-      - scripts/
-    expire_in: 1 hour
   stage: release
   image: alpine:3.22.1
   only: [tags]
+  artifacts:
+    paths: 
+      - release.md
+      - assets/
+      - scripts/
+    expire_in: 1 hour
   only:
     - tags
   before_script:
