@@ -1,32 +1,48 @@
 spec:
   inputs:
-    gitlab_domain:
-      description: "Base GitLab domain (used for badge & catalog links)"
-      default: "https://gitlab.prplanit.com"
-
-    component_spec_file:
-      description: "Path to component spec file (for input parsing)"
-      default: "templates/run.yml"
-
-    readme_file:
-      description: "README file to inject Markdown input map into"
-      default: "README.md"
-
-    output_md_file:
-      description: "Temporary Markdown file path to generate"
-      default: "artifacts/component_inputs.md"
-
+    # input_section_name- StageFreight Settings
+    # input_section_desc- Core settings used by StageFreight.
     badge_template:
-      description: "SVG template for badge generation"
       default: "assets/badge-release-generic.svg"
-
+      description: "SVG template for badge generation"
     badge_output:
-      description: "Final badge output path"
       default: "assets/badge-release-status.svg"
-
+      description: "Final badge output path"
+    component_spec_file:
+      default:
+        - "templates/run.yml"
+      description: "Array of component spec files (for README input info)"
+      type: array
+    output_md_file:
+      default: "artifacts/component_inputs.md"
+      description: "Location to store generated component info Markdown artifact."
+    readme_file:
+      default: "README.md"
+      description: "README file to inject Markdown input map into"
+    # input_section_name- GitLab CI/CD Inputs
+    # input_section_desc- Inputs that configure GitLab Job behavior
+    artifacts:
+      default: []
+      description: 'An array of paths to preserve as CI/CD artifacts.'
+      type: array
     branch_name:
-      description: "Branch to push badge/README changes to"
       default: "main"
+      description: "Branch to push badge/README changes to"
+    gitlab_branch:
+      default: 'main'
+      description: 'Target Git branch for commits.'
+    gitlab_domain:
+      default: "https://gitlab.prplanit.com"
+      description: "Base GitLab domain (used for badge & catalog links)"
+    gitlab_job:
+      default: run-ansible
+      description: 'The intended name of the CI job spawned by this component.'
+    gitlab_stage:
+      default: ansible
+      description: 'The intended name of the CI stage this job will run in.'
+    gitlab_token:
+      default: ''
+      description: 'Token for authenticating GitLab API calls.'
 
 ---
 
