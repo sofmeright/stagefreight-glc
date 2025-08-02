@@ -16,8 +16,6 @@ spec:
     gitlab_token:
       default: ''
       description: 'Token for authenticating GitLab API calls.'
-      _input_group_name: Gitlab Job Config
-      _input_group_desc: Inputs that configure GitLab Job behavior
     badge-release-status_output:
       description: 'Path to store "badge-release_status.svg" within parent pipelines repo.'
       default: "assets/badge-release_status.svg"
