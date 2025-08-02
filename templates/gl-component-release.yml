@@ -92,6 +92,7 @@ generate_release_notes:
       - artifacts/
       - assets/
       - scripts/
+      - release.md
     expire_in: 1 hour
   stage: release
   image: alpine:3.22.1
