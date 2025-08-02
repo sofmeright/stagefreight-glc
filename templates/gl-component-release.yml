@@ -1,8 +1,6 @@
-# GitLab CI Component: ansible-release
+---
 
 spec:
-  name: "gl-component-release"
-  description: "Publishes GitLab releases, updates badges, and injects input maps into README"
   inputs:
     gitlab_domain:
       description: "Base GitLab domain (used for badge & catalog links)"
