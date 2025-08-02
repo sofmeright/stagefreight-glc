@@ -64,8 +64,8 @@ generate_readme_component_inputs:
       tree artifacts assets scripts templates
     - yq '.spec.inputs' "$[[ inputs.component_spec_file ]]" > artifacts/_inputs_raw.yaml
     - sed -i '/^---$/,$d' artifacts/_inputs_raw.yaml
-    - chmod +x scripts\gitlab\components\generate-component_inputs_table.sh
-    - ./scripts\gitlab\components\generate-component_inputs_table.sh artifacts/_inputs_raw.yaml "artifacts/component_inputs.md"
+    - chmod +x scripts/gitlab/components/generate-component_inputs_table.sh
+    - ./scripts/gitlab/components/generate-component_inputs_table.sh artifacts/_inputs_raw.yaml "artifacts/component_inputs.md"
     - >
       awk -v start="<!-- START_C_INPUTS_MAP -->" -v end="<!-- END_C_INPUTS_MAP -->" -v content="$(sed 's/\\/\\\\/g; s/"/\\"/g' artifacts/component_inputs.md | awk '{ print "echo \"" $0 "\"" }')" '
         BEGIN {inblock=0}
