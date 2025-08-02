@@ -54,11 +54,12 @@ generate_readme_component_inputs:
     YQ_VERSION: "v4.44.1"
     YQ_BINARY: "yq_linux_amd64"
   before_script:
-    - apk add --no-cache curl jq bash coreutils
+    - apk add --no-cache bash coreutils curl jq tree
     - curl -Ls "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/${YQ_BINARY}" -o /usr/bin/yq
     - chmod +x /usr/bin/yq
   script:
     - mkdir -p artifacts
+    - tree artifacts assets scripts templates
     - yq '.spec.inputs' "$[[ inputs.component_spec_file ]]" > artifacts/_inputs_raw.yaml
     - sed -i '/^---$/,$d' artifacts/_inputs_raw.yaml
     - chmod +x scripts\gitlab\components\generate-component_inputs_table.sh
