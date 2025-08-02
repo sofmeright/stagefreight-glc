@@ -5,13 +5,16 @@ export_dependencies:
     - apk add --no-cache git rsync
     - git clone "https://$CI_SERVER_HOST/components/stagefreight.git" --branch main --depth 1 stagefreight_repo
     - rsync -avz stagefreight_repo/artifacts/ ./artifacts/
-    - rsync -avz stagefreight_repo/assets/ ./assets/
-    - rsync -avz stagefreight_repo/scripts/ ./scripts/
-    - rsync -avz stagefreight_repo/templates/ ./templates/
-    - echo "Copied artifacts/assets/scripts/templates:"
+    - echo "Copied artifacts:"
     - ls -l artifacts
+    - rsync -avz stagefreight_repo/assets/ ./assets/
+    - echo "Copied assets:"
     - ls -l assets
+    - rsync -avz stagefreight_repo/scripts/ ./scripts/
+    - echo "Copied scripts:"
     - ls -l scripts
+    - rsync -avz stagefreight_repo/templates/ ./templates/
+    - echo "Copied templates:"
     - ls -l templates
   artifacts:
     paths:
