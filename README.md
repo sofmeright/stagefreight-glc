@@ -43,3 +43,97 @@ include:
 
 stages:
   - release
+```
+
+# gl-component-release
+> This is the component module that handles releases for GitLab components, it even manages its own release cycle using this module.
+
+## gl-component-release: Pipeline Jobs
+
+1. generate_release_notes
+    - Trigger: Runs on Git tags (only: tags).
+    - Purpose: Generates release notes from Git commit history between the previous and current tags.
+    - Details: Uses generate-release_notes.sh which:
+        - Verifies the provided tag exists.
+        - Extracts notable changes from the tag message.
+        - Collects changelog from commits between tags.
+        - Output: Creates a release.md artifact with formatted release notes.
+2. create-release
+    - Trigger: Runs after generate_release_notes, on tags.
+    - Purpose: Creates a GitLab Release using the notes from release.md.
+    - Details:
+        - Posts a release to the GitLab API with the tag and description.
+        - Adds a link asset to the release pointing to the component catalog entry.
+    - Notes: Handles "release already exists" case gracefully.
+3. generate_readme_component_inputs
+    - Trigger: Runs on tags.
+    - Purpose: Parses the component spec YAML file to generate a Markdown table documenting all inputs, grouped by logical categories.
+    - Details:
+        - Extracts .spec.inputs from the component spec file using yq.
+        - Uses a custom script generate-component_inputs_table.sh to convert inputs into a grouped Markdown table.
+        - Injects the generated table into the README between markers <!-- START_C_INPUTS_MAP --> and <!-- END_C_INPUTS_MAP -->.
+        - Pushes the updated README back to the repository via GitLab API.
+    - Artifacts: Outputs the generated Markdown table as an artifact for debugging/inspection.
+4. update_release_pipeline_status_badge
+    - Trigger: Runs after create-release, on tags.
+    - Purpose: Creates or updates an SVG badge reflecting the current pipeline status (passed, failed, running).
+    - Details:
+        - Queries all jobs in the current pipeline.
+        - Determines overall status based on job statuses.
+        - Replaces color and status placeholders in the SVG template.
+        - Commits the updated badge SVG back to the repository.
+    - Artifacts: Stores the badge SVG temporarily.
+
+## gl-component-release: Scripts
+
+1. `generate-release_notes.sh`
+</br>Shell script to generate release notes by:
+    - Validating the release tag.
+    - Determining the previous tag.
+    - Extracting tag message and commit log between tags.
+    - Outputs formatted Markdown release notes.
+
+2. generate-component_inputs_table.sh
+</br>Bash script that:
+    - Converts the component inputs YAML to JSON.
+    - Uses jq to group inputs by _input_group_name and format a Markdown table with columns: Name, Required, Default, Description.
+    - Converts boolean required flags to checkmark/emoji.
+    - Outputs Markdown for injection into README.
+
+## How to Build Your Own Component for Use with StageFreight
+
+1. Define your component inputs clearly in a YAML spec file (e.g. templates/run.yml) under .spec.inputs.
+2. Use metadata fields _input_group_name and _input_group_desc to logically group related inputs for documentation.
+3. Include description, default values, and mark required inputs by omitting defaults.
+4. Prepare your README with placeholder markers for inputs injection:
+
+    ```markdown
+    ...
+    <!-- START_C_INPUTS_MAP -->
+    <!-- END_C_INPUTS_MAP -->
+    ...
+    ```
+5. Provide a badge SVG template with placeholders {{COLOR}} and {{STATUS}} for dynamic replacement.
+6. Add the StageFreight component to your .gitlab-ci.yml, passing the required inputs to connect your spec, README, badge paths, and GitLab domain.
+7. Tag your releases in Git to trigger the pipeline.
+> Optionally extend the pipeline by adding build/release jobs (Docker, Windows, Linux) before or after the StageFreight jobs, integrating your actual artifact generation.
+
+## Notes & Future Work
+> Currently, StageFreight supports release orchestration for Docker and Windows builds with plans for Linux binary or DEB package publishing.
+
+The release notes script can be customized to better reflect project-specific changelog conventions.
+
+Badge and input documentation injection promotes transparency and ease of use for component consumers.
+
+The component is designed for reuse and extension across multiple projects and artifact types within your GitLab ecosystem.
+
+Example README Snippet for Inputs Injection
+```markdown
+# Component Inputs
+
+Below is the automatically generated table of inputs for this component:
+
+<!-- START_C_INPUTS_MAP -->
+<!-- END_C_INPUTS_MAP -->
+```
+This documentation should give you a clear understanding of how StageFreight works, how to use it, and how to build your own GitLab components compatible with its release tooling. We hope you are hyped as we were to start using this tool!
