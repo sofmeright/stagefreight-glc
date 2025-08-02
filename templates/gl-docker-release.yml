@@ -62,7 +62,7 @@ generate_release_notes:
     - apk add --no-cache bash curl git
     - chmod +x ./scripts/gitlab/generate-release_notes.sh
   script:
-    - ./scripts/release-notes.sh > release.md
+    - ./scripts/gitlab/generate-release_notes.sh > release.md
     - test -s release.md || (echo "❌ release.md is empty!" && exit 1)
 
 create-release:
