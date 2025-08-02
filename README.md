@@ -28,7 +28,7 @@ StageFreight enables your GitLab projects to:
 ## See Also:
 - [Ansible (Gitlab Component)](https://gitlab.prplanit.com/components/ansible)
 - [Ansible OCI](https://gitlab.prplanit.com/precisionplanit/ansible-oci) – Docker runtime image for Ansible workflows
-- [StageFreight OCI (Docker Image)](https://gitlab.prplanit.com/precisionplanit/stagefreight-oci) – GitLab CI pipeline orchestration for releases
+- [StageFreight OCI (Docker Image)](https://gitlab.prplanit.com/precisionplanit/stagefreight-oci) – A general-purpose DevOps automation image built to accelerate CI/CD pipelines.
 
 ---
 
