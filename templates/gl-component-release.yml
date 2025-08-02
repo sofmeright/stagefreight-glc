@@ -45,6 +45,7 @@ generate_readme_component_inputs:
       - artifacts/
       - assets/
       - scripts/
+      - templates/
     expire_in: 1 hour
   stage: release
   image: alpine:3.22.1
