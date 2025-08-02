@@ -1,7 +1,7 @@
 # GitLab CI Component: ansible-release
 
 component:
-  name: "release-gl-component"
+  name: "gl-component-release"
   description: "Publishes GitLab releases, updates badges, and injects input maps into README"
   inputs:
     gitlab_domain:

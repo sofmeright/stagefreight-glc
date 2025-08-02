@@ -1,5 +1,5 @@
 include:
-  - component: $CI_SERVER_FQDN/components/stagefreight@main
+  - component: $CI_SERVER_FQDN/components/stagefreight/gl-component-release@main
     inputs:
       gitlab_domain: "https://gitlab.prplanit.com"
       component_spec_file: "templates/run.yml"
