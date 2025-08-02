@@ -1,5 +1,5 @@
 export_dependencies:
-  stage: export
+  stage: build
   script:
     - echo "Exporting scripts and assets..."
   artifacts:
