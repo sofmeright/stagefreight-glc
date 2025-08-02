@@ -1,4 +1,4 @@
-# StageFreight
+# ![StageFreight](https://gitlab.prplanit.com/uploads/-/system/project/avatar/36/Screenshot_2025-08-01_214734.png?width=26) StageFreight
 
 > A reusable GitLab CI component for managing and publishing release artifacts and metadata in a consistent, automated way.  
 > It focuses on orchestrating the release lifecycle: generating release notes, creating GitLab releases, documenting component inputs, and updating release status badges.  
