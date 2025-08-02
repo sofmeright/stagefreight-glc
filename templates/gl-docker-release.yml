@@ -26,13 +26,17 @@ stages:
 variables:
   DOCKER_HUB_USERNAME: "$[[ inputs.docker_hub_user ]]"
   DOCKER_HUB_PASSWORD: "$[[ inputs.docker_hub_pass ]]"
+  DOCKER_IMAGE: "$[[ inputs.docker_image ]]"
+  DOCKER_TAG: "$[[ inputs.docker_tag ]]"
+  GITLAB_DOMAIN: "$[[ inputs.gitlab_domain ]]"
+
   DOCKER_HOST: "tcp://docker:2376"
   DOCKER_TLS_VERIFY: "1"
   DOCKER_CERT_PATH: "/certs/client"
   DOCKER_TLS_CERTDIR: "/certs"
-  DOCKER_IMAGE: "$[[ inputs.docker_image ]]"
-  DOCKER_TAG: "$[[ inputs.docker_tag ]]"
-  GITLAB_DOMAIN: "$[[ inputs.gitlab_domain ]]"
+  DOCKER_TAG: "$CI_COMMIT_TAG"
+  GIT_TAG: "$CI_COMMIT_TAG"
+
 
 build-image:
   stage: build
