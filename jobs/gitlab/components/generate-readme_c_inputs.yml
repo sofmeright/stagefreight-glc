@@ -13,8 +13,8 @@ generate_readme_component_inputs:
     - mkdir -p artifacts
     - yq '.spec.inputs' "$[[ inputs.component_spec_file ]]" > artifacts/_inputs_raw.yaml
     - sed -i '/^---$/,$d' artifacts/_inputs_raw.yaml
-    - chmod +x scripts/component-inputs-syntax.sh
-    - ./scripts/component-inputs-syntax.sh artifacts/_inputs_raw.yaml "$[[ inputs.output_md_file ]]"
+    - chmod +x scripts\gitlab\components\generate-component_inputs_table.sh
+    - ./scripts\gitlab\components\generate-component_inputs_table.sh artifacts/_inputs_raw.yaml "$[[ inputs.output_md_file ]]"
     - >
       awk -v start="<!-- START_C_INPUTS_MAP -->" -v end="<!-- END_C_INPUTS_MAP -->" -v content="$(sed 's/\\/\\\\/g; s/"/\\"/g' $[[ inputs.output_md_file ]] | awk '{ print "echo \"" $0 "\"" }')" '
         BEGIN {inblock=0}

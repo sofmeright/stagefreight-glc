@@ -32,7 +32,7 @@ stages:
   - release
 
 include:
-  - local: jobs/gitlab/generate_release_notes.yml
-  - local: jobs/gitlab/create_release.yml
-  - local: jobs/gitlab/update_release_badge.yml
-  - local: jobs/gitlab/generate_readme_component_inputs.yml
+  - local: jobs/gitlab/components/generate-readme_c_inputs.yml
+  - local: jobs/gitlab/create-release.yml
+  - local: jobs/gitlab/generate-release_notes.yml
+  - local: jobs/gitlab/update-release_pipeline_status_badge.yml
