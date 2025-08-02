@@ -47,7 +47,6 @@ stages:
 variables:
   GITLAB_DOMAIN: $[[ inputs.gitlab_domain ]]
   GITLAB_TOKEN: $[[ inputs.gitlab_token ]]
-  CI_API_V4_URL: $[[ inputs.ci_api_v4_url ]]
 
 generate_readme_component_inputs:
   artifacts:
