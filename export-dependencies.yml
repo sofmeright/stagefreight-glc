@@ -1,16 +1,18 @@
 export_dependencies:
+  stage: build
+  image: alpine:3.22.1
+  script:
+    - apk add --no-cache git
+    - git clone "https://$CI_SERVER_HOST/components/stagefreight.git" --branch main --depth 1 stagefreight_repo
+    - cp -r stagefreight_repo/scripts ./scripts
+    - cp -r stagefreight_repo/assets ./assets
+    - echo "Copied scripts and assets:"
+    - ls -l scripts
+    - ls -l assets
   artifacts:
     paths:
       - scripts/
       - assets/
     expire_in: 1 hour
-  image: alpine:3.22.1
-  only: [tags]
-  stage: build
-  script: |
-    echo "For the contents of the work_dir:"
-    ls -l
-    echo "Exporting scripts/..."
-    ls -l scripts/
-    echo "Exporting assets/..."
-    ls -l assets/
+  only:
+    - tags
