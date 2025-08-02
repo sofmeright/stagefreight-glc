@@ -7,5 +7,10 @@ export_dependencies:
   image: alpine:3.22.1
   only: [tags]
   stage: build
-  script:
-    - echo "Exporting scripts and assets..."
+  script: |
+    echo "For the contents of the work_dir:"
+    ls -l
+    echo "Exporting scripts/..."
+    ls -l scripts/
+    echo "Exporting assets/..."
+    ls -l assets/
