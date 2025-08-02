@@ -58,7 +58,6 @@ generate_readme_component_inputs:
     expire_in: 1 hour
   stage: release
   image: alpine:3.22.1
-  only: [tags]
   rules:
     - if: '$CI_COMMIT_REF_NAME == "main"'
     - if: '$CI_COMMIT_TAG'
@@ -109,8 +108,6 @@ generate_release_notes:
     expire_in: 1 hour
   stage: release
   image: alpine:3.22.1
-  only:
-    - tags
   rules:
     - if: '$CI_COMMIT_REF_NAME == "main"'
     - if: '$CI_COMMIT_TAG'
@@ -133,8 +130,6 @@ create-release:
   stage: release
   image: alpine:3.22.1
   needs: [generate_release_notes]
-  only:
-    - tags
   rules:
     - if: '$CI_COMMIT_REF_NAME == "main"'
     - if: '$CI_COMMIT_TAG'
@@ -163,7 +158,6 @@ update_release_pipeline_status_badge:
     expire_in: 1 hour
   stage: release
   image: alpine:3.22.1
-  only: [tags]
   rules:
     - if: '$CI_COMMIT_REF_NAME == "main"'
     - if: '$CI_COMMIT_TAG'
