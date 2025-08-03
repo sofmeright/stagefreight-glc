@@ -1,30 +1,88 @@
 spec:
   inputs:
-    # input_section_name- Docker Hub Config
-    # input_section_desc- Settings Needed to Publish on the Docker Hub.
-    docker_hub_user:
-      description: "Docker Hub username for image publishing"
-    docker_hub_pass:
-      description: "Docker Hub password or token for authentication"
-    docker_image:
-      description: "Docker image name"
-      default: "prplanit/stagefreight"
-    docker_tag:
-      description: "Docker tag to use (usually CI_COMMIT_TAG)"
-      default: "$CI_COMMIT_TAG"
     # input_section_name- GitLab CI/CD Inputs
     # input_section_desc- Inputs that configure GitLab Job behavior
     gitlab_domain:
-      description: "GitLab domain"
-      default: "https://gitlab.prplanit.com"
+      description: "GitLab domain used to locate repository folders for uploads, etc."
     gitlab_token:
-      default: ''
       description: 'Token for authenticating GitLab API calls.'
+    # input_section_name- Gitlab- Release Info (Currently supports Docker Hub only.)
+    # input_section_desc- Configures embedding of the Docker Hub image into the release page.
+    docker_release_path:
+      description: "Path/Name of the DockerHub Image to embed on the release page."
+      default: ""
     # input_section_name- StageFreight Settings
     # input_section_desc- Core settings used by StageFreight.
-    badge-release-status_output:
+    freight_pipeline_status_file:
       description: 'Path to store "badge-release_status.svg" within parent pipelines repo.'
       default: "assets/badge-release_status.svg"
+    # input_section_name- Docker Registry 1 Config
+    # input_section_desc- Note that you can configure more than 3 by overriding.
+    freight_docker_url_1:
+      description: "The registry endpoint to push the Docker image to (i.e. docker.io)"
+      type: string
+      default: ""
+    freight_docker_user_1:
+      description: "The username used to authenticate with the registry."
+      type: string
+      default: ""
+    freight_docker_pass_1:
+      description: "The password or access token for authentication."
+      type: string
+      default: ""
+    freight_docker_path_1:
+      description: "The full image path to push (i.e. prplanit/stagefreight)"
+      type: string
+      default: ""
+    freight_docker_registry_1:
+      description: "A friendly name used in logs to identify this registry."
+      type: string
+      default: ""
+    # input_section_name- Docker Registry 2 Config
+    # input_section_desc- Note that you can configure more than 3 by overriding.
+    freight_docker_url_2:
+      description: "The registry endpoint to push the Docker image to (i.e. docker.io)"
+      type: string
+      default: ""
+    freight_docker_user_2:
+      description: "The username used to authenticate with the registry."
+      type: string
+      default: ""
+    freight_docker_pass_2:
+      description: "The password or access token for authentication."
+      type: string
+      default: ""
+    freight_docker_path_2:
+      description: "The full image path to push (i.e. prplanit/stagefreight)"
+      type: string
+      default: ""
+    freight_docker_registry_2:
+      description: "A friendly name used in logs to identify this registry."
+      type: string
+      default: ""
+    # input_section_name- Docker Registry 3 Config
+    # input_section_desc- Note that you can configure more than 3 by overriding.
+    freight_docker_url_3:
+      description: "The registry endpoint to push the Docker image to (i.e. docker.io)"
+      type: string
+      default: ""
+    freight_docker_user_3:
+      description: "The username used to authenticate with the registry."
+      type: string
+      default: ""
+    freight_docker_pass_3:
+      description: "The password or access token for authentication."
+      type: string
+      default: ""
+    freight_docker_path_3:
+      description: "The full image path to push (i.e. prplanit/stagefreight)"
+      default: ""
+      type: string
+      default: ""
+    freight_docker_registry_3:
+      description: "A friendly name used in logs to identify this registry."
+      type: string
+      default: ""
 
 ---
 
@@ -34,13 +92,10 @@ stages:
   - release
 
 variables:
-  BADGE_RELEASE_STATS_OUT: "$[[ inputs.badge-release-status_output ]]"
-  DOCKER_HUB_USERNAME: "$[[ inputs.docker_hub_user ]]"
-  DOCKER_HUB_PASSWORD: "$[[ inputs.docker_hub_pass ]]"
-  DOCKER_IMAGE: "$[[ inputs.docker_image ]]"
-  DOCKER_TAG: "$[[ inputs.docker_tag ]]"
+  BADGE_RELEASE_STATS_OUT: "$[[ inputs.freight_pipeline_status_file ]]"
+  DOCKER_RELEASE_PATH: "$[[ inputs.docker_release_path ]]"
   GITLAB_DOMAIN: "$[[ inputs.gitlab_domain ]]"
-  GITLAB_TOKEN: $[[ inputs.gitlab_token ]]
+  GITLAB_TOKEN: "$[[ inputs.gitlab_token ]]"
 
   DOCKER_HOST: "tcp://docker:2376"
   DOCKER_TLS_VERIFY: "1"
@@ -49,28 +104,105 @@ variables:
   DOCKER_TAG: "$CI_COMMIT_TAG"
   GIT_TAG: "$CI_COMMIT_TAG"
 
+  freight_docker_url_1: $[[ inputs.freight_docker_url_1 ]]
+  freight_docker_user_1: $[[ inputs.freight_docker_user_1 ]]
+  freight_docker_pass_1: $[[ inputs.freight_docker_pass_1 ]]
+  freight_docker_path_1: $[[ inputs.freight_docker_path_1 ]]
+  freight_docker_registry_1: $[[ inputs.freight_docker_registry_1 ]]
+
+  freight_docker_url_2: $[[ inputs.freight_docker_url_2 ]]
+  freight_docker_user_2: $[[ inputs.freight_docker_user_2 ]]
+  freight_docker_pass_2: $[[ inputs.freight_docker_pass_2 ]]
+  freight_docker_path_2: $[[ inputs.freight_docker_path_2 ]]
+  freight_docker_registry_2: $[[ inputs.freight_docker_registry_2 ]]
+
+  freight_docker_url_3: $[[ inputs.freight_docker_url_3 ]]
+  freight_docker_user_3: $[[ inputs.freight_docker_user_3 ]]
+  freight_docker_pass_3: $[[ inputs.freight_docker_pass_3 ]]
+  freight_docker_path_3: $[[ inputs.freight_docker_path_3 ]]
+  freight_docker_registry_3: $[[ inputs.freight_docker_registry_3 ]]
+
 build-image:
   stage: build
-  image: docker:24.0.5
+  image:
+    name: docker.jcr.pcfae.com/prplanit/stagefreight:latest
+    entrypoint: [""]
+  needs: [export_dependencies]
   services:
-    - name: docker:24.0.5-dind
+    - name: docker.jcr.pcfae.com/docker:24.0.5-dind
       alias: docker
-  before_script: |
-    echo "Installing dependencies..."
-    #- apk add --no-cache bash git
-  script: |
-    echo "Building docker image: $DOCKER_IMAGE:$DOCKER_TAG"
-    #- docker build -t "$DOCKER_IMAGE:$DOCKER_TAG" .
-    #- echo "$DOCKER_HUB_PASSWORD" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
-    #- docker push "$DOCKER_IMAGE:$DOCKER_TAG"
-    #- docker tag "$DOCKER_IMAGE:$DOCKER_TAG" "$DOCKER_IMAGE:latest"
-    #- docker push "$DOCKER_IMAGE:latest"
+  before_script:
+    - echo "Setting up Docker TLS context for buildx..."
+    - docker context create tls-context --docker "host=$DOCKER_HOST,ca=$DOCKER_CERT_PATH/ca.pem,cert=$DOCKER_CERT_PATH/cert.pem,key=$DOCKER_CERT_PATH/key.pem"
+    - docker buildx create --name stagefreight-builder --use tls-context
+  script:
+    - |
+      set -euo pipefail
+
+      echo "Starting image build using buildx..."
+      docker buildx build \
+        --platform linux/amd64 \
+        --tag "$CI_PROJECT_PATH:$CI_COMMIT_TAG" \
+        --build-arg COMMIT_TAG="$CI_COMMIT_TAG" \
+        --secret id=gitlab_token,env=CI_JOB_TOKEN \
+        --output type=docker \
+        -f Dockerfile .
+
+      if [[ -n "${freight_docker_override:-}" ]]; then
+        echo "Using overridden registry config."
+        echo "$freight_docker_override" | yq -P '.' > /tmp/override_registry_list.yml
+        count=$(yq '. | length' /tmp/override_registry_list.yml)
+
+        for i in $(seq 0 $((count - 1))); do
+          url=$(yq -r ".[$i].url" /tmp/override_registry_list.yml)
+          user=$(yq -r ".[$i].user" /tmp/override_registry_list.yml)
+          pass=$(yq -r ".[$i].pass" /tmp/override_registry_list.yml)
+          path=$(yq -r ".[$i].path" /tmp/override_registry_list.yml)
+          registry_name=$(yq -r ".[$i].registry // \"registry_${i}\"" /tmp/override_registry_list.yml)
+
+          echo "Pushing to $registry_name ($url)..."
+          echo "$pass" | docker login -u "$user" --password-stdin "$url"
+          docker tag "$CI_PROJECT_PATH:$CI_COMMIT_TAG" "$url/$path:$CI_COMMIT_TAG"
+          docker push "$url/$path:$CI_COMMIT_TAG"
+          docker tag "$CI_PROJECT_PATH:$CI_COMMIT_TAG" "$url/$path:latest"
+          docker push "$url/$path:latest"
+        done
+      else
+        echo "Using up to 3 registry input slots..."
+        for i in 1 2 3; do
+          url_var="freight_docker_url_$i"
+          user_var="freight_docker_user_$i"
+          pass_var="freight_docker_pass_$i"
+          path_var="freight_docker_path_$i"
+          registry_var="freight_docker_registry_$i"
+
+          url="${!url_var:-}"
+          user="${!user_var:-}"
+          pass="${!pass_var:-}"
+          path="${!path_var:-}"
+          registry="${!registry_var:-registry_$i}"
+
+          if [[ -z "$url" || -z "$user" || -z "$pass" ]]; then
+            echo "Skipping registry slot #$i: missing URL/user/pass"
+            continue
+          fi
+
+          echo "Pushing to $registry ($url)..."
+          echo "$pass" | docker login -u "$user" --password-stdin "$url"
+          docker tag "$CI_PROJECT_PATH:$CI_COMMIT_TAG" "$url/$path:$CI_COMMIT_TAG"
+          docker push "$url/$path:$CI_COMMIT_TAG"
+          docker tag "$CI_PROJECT_PATH:$CI_COMMIT_TAG" "$url/$path:latest"
+          docker push "$url/$path:latest"
+        done
+      fi
   rules:
-    - if: $CI_COMMIT_TAG
+    - if: '$CI_COMMIT_TAG'
+      when: always
 
 generate_release_notes:
   stage: release
   image: alpine:3.22.1
+  needs: [export_dependencies]
   only: [tags]
   artifacts:
     paths: 
@@ -105,7 +237,11 @@ create-release:
         --form "description=$RELEASE_NOTES" \
         "$CI_API_V4_URL/projects/$CI_PROJECT_ID/releases" || echo "Release might already exist"
     - |
-      DOCKER_IMAGE_LINK="https://hub.docker.com/r/$DOCKER_IMAGE/tags?page=1&name=$CI_COMMIT_TAG"
+      if [ -z "${DOCKER_RELEASE_PATH:-}" ]; then
+          echo "DOCKER_RELEASE_PATH not set. Skipping link embed."
+          exit 0
+        fi
+      DOCKER_IMAGE_LINK="https://hub.docker.com/r/$DOCKER_RELEASE_PATH/tags?page=1&name=$CI_COMMIT_TAG"
       curl --silent --fail --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
         --request POST \
         --header "Content-Type: application/json" \
