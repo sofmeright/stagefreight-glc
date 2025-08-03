@@ -135,7 +135,7 @@ Core settings used by StageFreight.
 - Are you passing protected variables to the component but the project calling it is not in a protected branch/tag? You will need to adjust for that, I recommend the solution above.
 - Base64 encoding CI/CD variables is an ideal solution to make them oneliners if you want to make full use of GitLabs safeguards.
 
-## CRITICAL ~ Runners can cache variable/files in a way that causes unintentional effects.
+#### Runners can cache variable/files in a way that causes unintentional effects.
 
 > It is possible to have keys/secrets or other files persist in the cache of the runner & locally. This can be confusing when you encounter it.
 
