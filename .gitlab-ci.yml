@@ -9,7 +9,7 @@ include:
     needs: export-dependencies
     inputs:
       gitlab_domain: "https://gitlab.prplanit.com"
-      component_spec_file: "templates/gl-component-release.yml"
+      component_spec_files: "templates/gl-component-release.yml"
       readme_file: "README.md"
       badge_template: "assets/badge-release-generic.svg"
       badge_output: "assets/badge-release-status.svg"
