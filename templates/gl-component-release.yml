@@ -145,7 +145,7 @@ generate_release_notes:
       cat ./scripts/gitlab/generate-release_notes.sh
 
       echo "Fetching tags history to provide info about changes..."
-      git fetch --tags  # ⬅️ Add this line
+      git fetch --tags
 
       echo "Making generate-release_notes.sh executable..."
       chmod +x scripts/gitlab/generate-release_notes.sh
