@@ -84,7 +84,7 @@ Core settings used by StageFreight.
 |------|----------|---------|-------------|
 | badge_template | 🚫 | assets/badge-release-generic.svg | SVG template for badge generation |
 | badge_output | 🚫 | assets/badge-release-status.svg | Final badge output path |
-| component_spec_files | 🚫 | templates/gl-component-release.yml | Array of component spec files (for README input info) |
+| component_spec_files | 🚫 | [templates/gl-component-release.yml,templates/gl-docker-release.yml] | Array of component spec files (for README input info) |
 | readme_file | 🚫 | README.md | README file to inject Markdown input map into |
 
 <!-- END_C_INPUTS_MAP -->
