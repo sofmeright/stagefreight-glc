@@ -31,8 +31,8 @@ spec:
 # Begin CI pipeline jobs
 stages:
   - test
-  - build
-  - release
+  #- build
+  #- release
 
 variables:
   BADGE_RELEASE_STATS_OUT: "$[[ inputs.badge-release-status_output ]]"
