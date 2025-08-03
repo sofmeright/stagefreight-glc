@@ -82,50 +82,44 @@ generate_readme_component_inputs:
 
     - mkdir -p artifacts
 
-    # Dump raw input array for inspection
-    - echo "component_spec_files raw input:" && echo "$[[ inputs.component_spec_files ]]"
-
-    # Use yq to convert the array to a newline-separated list and store it in a Bash array
+    # Extract inputs YAML block
+    # Convert YAML-style array string into a Bash array
     - |
-      mapfile -t COMPONENT_FILES < <(yq -r '.spec.inputs.component_spec_files[]' "$CI_PROJECT_DIR/$CI_COMMIT_REF_NAME.yml")
-      echo "Parsed component spec files:"
+      raw_input="$[[ inputs.component_spec_files ]]"
+      echo "Raw input array: $raw_input"
+      IFS=$'\n' read -rd '' -a COMPONENT_FILES <<<"$(echo "$raw_input" | sed 's/[][]//g' | tr ',' '\n' | tr -d '" ')"
+
+      echo "Parsed component files:"
       for f in "${COMPONENT_FILES[@]}"; do echo " - $f"; done
 
-    # Clean target file
-    - : > artifacts/component_inputs.md
-
-    # Loop through and process each file
-    - |
-      for COMPONENT_FILE in "${COMPONENT_FILES[@]}"; do
-        if [[ ! -f "$COMPONENT_FILE" ]]; then
-          echo "❌ File not found: $COMPONENT_FILE"
-          continue
+      # Prepare the final combined raw input file
+      : > artifacts/_inputs_raw.yaml
+      for file in "${COMPONENT_FILES[@]}"; do
+        if [[ -f "$file" ]]; then
+          echo "# $file" >> artifacts/_inputs_raw.yaml
+          yq '.spec.inputs' "$file" >> artifacts/_inputs_raw.yaml
+          echo "---" >> artifacts/_inputs_raw.yaml
+        else
+          echo "WARNING: Component spec file '$file' not found!" >&2
         fi
-
-        COMPONENT_NAME=$(basename "$COMPONENT_FILE" | sed 's/\.[^.]*$//')
-
-        echo "📦 Processing $COMPONENT_FILE (Component: $COMPONENT_NAME)"
-        yq '.spec.inputs' "$COMPONENT_FILE" > artifacts/_inputs_raw.yaml
-        yq -o=json '.spec.inputs' "$COMPONENT_FILE" > artifacts/_inputs.json
-        sed -i '/^---$/,$d' artifacts/_inputs_raw.yaml
-
-        echo "--- RAW INPUT BLOCK for $COMPONENT_NAME ---"
-        cat artifacts/_inputs_raw.yaml
-        echo "--- END RAW INPUT BLOCK ---"
-
-        # Generate Markdown
-        chmod +x scripts/gitlab/components/generate-component_inputs_table.sh
-        ./scripts/gitlab/components/generate-component_inputs_table.sh artifacts/_inputs_raw.yaml artifacts/_inputs_temp.md
-
-        echo "### $COMPONENT_NAME Component Inputs" >> artifacts/component_inputs.md
-        echo "" >> artifacts/component_inputs.md
-        cat artifacts/_inputs_temp.md >> artifacts/component_inputs.md
-        echo "" >> artifacts/component_inputs.md
-        echo "---" >> artifacts/component_inputs.md
-        echo "" >> artifacts/component_inputs.md
       done
 
-    - echo "--- Combined Generated Markdown ---"
+      # Trim off the last trailing separator
+      sed -i '/^---$/,$d' artifacts/_inputs_raw.yaml
+
+      # Export to JSON too (last file's inputs for now, used by some steps)
+      last_file="${COMPONENT_FILES[-1]}"
+      yq -o=json '.spec.inputs' "$last_file" > artifacts/_inputs.json
+
+    - echo "--- RAW INPUT BLOCK ---"
+    - cat artifacts/_inputs_raw.yaml
+    - echo "--- END RAW INPUT BLOCK ---"
+
+    # Run script to generate component-inputs syntax infos.
+    - chmod +x scripts/gitlab/components/generate-component_inputs_table.sh
+    - ./scripts/gitlab/components/generate-component_inputs_table.sh artifacts/_inputs_raw.yaml artifacts/component_inputs.md
+
+    - echo "--- Generated Markdown ---"
     - cat artifacts/component_inputs.md
     - echo "--- End of Markdown ---"
 
