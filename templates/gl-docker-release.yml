@@ -32,7 +32,7 @@ spec:
 stages:
   - test
   - build
-  #- release
+  - release
 
 variables:
   BADGE_RELEASE_STATS_OUT: "$[[ inputs.badge-release-status_output ]]"
