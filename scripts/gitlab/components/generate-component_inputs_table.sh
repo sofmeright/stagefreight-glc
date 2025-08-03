@@ -6,8 +6,8 @@ OUTPUT_MD_FILE="$2"
 
 mkdir -p "$(dirname "$OUTPUT_MD_FILE")"
 
-TMP_INPUTS="/tmp/inputs_with_groups.yaml"
-TMP_JSON="/tmp/inputs.json"
+TMP_INPUTS="/tmp/inputs_with_groups_$(basename "$COMPONENT_SPEC_FILE" | tr '/' '_' | sed 's/[^a-zA-Z0-9]/_/g').yaml"
+TMP_JSON="/tmp/inputs_$(basename "$COMPONENT_SPEC_FILE" | tr '/' '_' | sed 's/[^a-zA-Z0-9]/_/g').json"
 
 echo "🔍 Debug: Parsing group metadata and inputs..."
 
