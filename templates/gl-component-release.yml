@@ -173,7 +173,7 @@ create-release:
     - >
       curl --silent --fail --header "PRIVATE-TOKEN: $GITLAB_TOKEN"
       --request POST --header "Content-Type: application/json"
-      --data "{\"name\":\"$CI_PROJECT_NAME:CI_COMMIT_TAG Component in GitLab Catalog\",\"url\":\"$CATALOG_LINK\",\"link_type\":\"other\"}"
+      --data "{\"name\":\"$CI_PROJECT_NAME:$CI_COMMIT_TAG Component in GitLab Catalog\",\"url\":\"$CATALOG_LINK\",\"link_type\":\"other\"}"
       "$CI_API_V4_URL/projects/$CI_PROJECT_ID/releases/$CI_COMMIT_TAG/assets/links"
 
 update_release_pipeline_status_badge:
