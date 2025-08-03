@@ -91,8 +91,8 @@ generate_readme_component_inputs:
     - echo "--- END RAW INPUT BLOCK ---"
 
     # Run script to generate component-inputs syntax infos.
-    - chmod +x scripts/components/generate-component_inputs_table.sh
-    - ./scripts/components/generate-component_inputs_table.sh artifacts/_inputs_raw.yaml artifacts/component_inputs.md
+    - chmod +x scripts/gitlab/components/generate-component_inputs_table.sh
+    - ./scripts/gitlab/components/generate-component_inputs_table.sh artifacts/_inputs_raw.yaml artifacts/component_inputs.md
 
     - echo "--- Generated Markdown ---"
     - cat artifacts/component_inputs.md
