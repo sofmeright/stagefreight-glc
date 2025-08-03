@@ -149,6 +149,90 @@ cache:
 
 ---
 
+# gl-docker-release
+
+### You can use this syntax to push to up to 3 registries.
+
+```yaml
+cache:
+  key: "${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_ID}"
+  paths:
+    - .cache/
+
+include:
+  - component: $CI_SERVER_FQDN/components/stagefreight/gl-docker-release@dev
+    inputs:
+      gitlab_domain: "https://gitlab.prplanit.com"
+      gitlab_token: "${GITLAB_TOKEN}"
+      docker_release_path: "prplanit/gluetun-qbit-port-mgmt"
+
+      freight_docker_url_1: "docker.io"
+      freight_docker_user_1: "${DOCKER_HUB_USERNAME}"
+      freight_docker_pass_1: "${DOCKER_HUB_PASSWORD}"
+      freight_docker_path_1: "prplanit/gluetun-qbit-port-mgmt"
+      freight_docker_registry_1: "docker"
+
+      freight_docker_url_2: "..."
+      freight_docker_user_2: "..."
+      freight_docker_pass_2: "..."
+      freight_docker_path_2: "..."
+      freight_docker_registry_2: "..."
+
+      freight_docker_url_3: "..."
+      freight_docker_user_3: "..."
+      freight_docker_pass_3: "..."
+      freight_docker_path_3: "..."
+      freight_docker_registry_3: "..."
+    - project: 'components/stagefreight'
+    file: '/export-dependencies.yml'
+    ref: main
+
+stages:
+  - build
+  - release
+```
+
+### Or push to as many registries as you need with the Advanced Syntax
+
+```yaml
+cache:
+  key: "${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_ID}"
+  paths:
+    - .cache/
+
+include:
+  - component: $CI_SERVER_FQDN/components/stagefreight/gl-docker-release@dev
+    inputs:
+      gitlab_domain: "https://gitlab.prplanit.com"
+      gitlab_token: "${GITLAB_TOKEN}"
+      docker_release_path: "prplanit/gluetun-qbit-port-mgmt"
+  - project: 'components/stagefreight'
+    file: '/export-dependencies.yml'
+    ref: main
+
+# Declare registries within a single YAML array variable
+variables:
+  freight_docker_override: |
+    - url: quay.io
+      user: "$QUAY_USER"
+      pass: "$QUAY_PASS"
+      path: "myuser/myapp:$CI_COMMIT_TAG"
+      registry: quay
+    - url: registry.gitlab.com
+      user: "$CI_REGISTRY_USER"
+      pass: "$CI_REGISTRY_PASSWORD"
+      path: "$CI_PROJECT_PATH:$CI_COMMIT_TAG"
+      registry: gitlab
+    - url: ...
+      user: ...
+      pass: ...
+      path: ...
+      registry: ...
+      ...
+```
+
+---
+
 # gl-component-release
 > This is the component module that handles releases for GitLab components, it even manages its own release cycle using this module.
 
