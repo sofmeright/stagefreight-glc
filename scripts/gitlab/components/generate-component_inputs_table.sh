@@ -30,7 +30,7 @@ for f in "${file_array[@]}"; do
     echo "### Processing component: $COMPONENT_NAME"
 
     tmpfile=/tmp/inputs_tmp.yaml
-    yq eval -o=yaml -d0 '.spec.inputs' "$f" > "$tmpfile"
+    yq eval -o=yaml '.spec.inputs // empty' "$f" > "$tmpfile"
 
     if grep -qv '^null$' "$tmpfile"; then
       echo "# --- $COMPONENT_NAME ---" >> "$TMP_MERGED_INPUTS"
