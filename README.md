@@ -268,10 +268,12 @@ cache:
 
 ---
 
-# gl-component-release
+# **Technical Details**
+
+## gl-component-release
 > This is the component module that handles releases for GitLab components, it even manages its own release cycle using this module.
 
-## gl-component-release: Pipeline Jobs
+### gl-component-release: Pipeline Jobs
 
 1. generate_release_notes
     - Trigger: Runs on Git tags (only: tags).
@@ -307,7 +309,7 @@ cache:
         - Commits the updated badge SVG back to the repository.
     - Artifacts: Stores the badge SVG temporarily.
 
-## gl-component-release: Scripts
+### gl-component-release: Scripts
 
 1. `generate-release_notes.sh`
 - Shell script to generate release notes by:
@@ -323,7 +325,7 @@ cache:
     - Converts boolean required flags to checkmark/emoji.
     - Outputs Markdown for injection into README.
 
-## How to Build Your Own Component for Use with StageFreight
+# How to Build Your Own Component for Use with StageFreight
 
 1. Define your component inputs clearly in a YAML spec file (e.g. templates/run.yml) under .spec.inputs.
 2. Use metadata fields _input_group_name and _input_group_desc to logically group related inputs for documentation.
