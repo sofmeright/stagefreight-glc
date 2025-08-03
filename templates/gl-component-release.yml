@@ -82,18 +82,32 @@ generate_readme_component_inputs:
 
     - mkdir -p artifacts
 
-    # Extract inputs YAML block
-    # Convert YAML-style array string into a Bash array
+    # -----------------------------------
+    # Parse component_spec_files safely
+    # -----------------------------------
     - |
-      raw_input="$[[ inputs.component_spec_files ]]"
-      echo "Raw input array: $raw_input"
-      IFS=$'\n' read -rd '' -a COMPONENT_FILES <<<"$(echo "$raw_input" | sed 's/[][]//g' | tr ',' '\n' | tr -d '" ')"
+      echo "--- Begin component_spec_files parsing ---"
 
-      echo "Parsed component files:"
-      for f in "${COMPONENT_FILES[@]}"; do echo " - $f"; done
+      # Emulate GitLab input array parsing
+      raw_input='$[[ inputs.component_spec_files ]]'
+      echo "Raw input array string: $raw_input"
 
-      # Prepare the final combined raw input file
+      # Strip outer brackets and split on commas
+      sanitized=$(echo "$raw_input" | sed 's/^\[\(.*\)\]$/\1/' | tr -d '"')
+      IFS=',' read -ra COMPONENT_FILES <<< "$sanitized"
+
+      echo "Parsed component spec files:"
+      for file in "${COMPONENT_FILES[@]}"; do
+        echo "  -> [$file]"
+      done
+
+      echo "--- End component_spec_files parsing ---"
+
+      # -----------------------------------
+      # Merge all .spec.inputs into one YAML for processing
+      # -----------------------------------
       : > artifacts/_inputs_raw.yaml
+
       for file in "${COMPONENT_FILES[@]}"; do
         if [[ -f "$file" ]]; then
           echo "# $file" >> artifacts/_inputs_raw.yaml
@@ -104,12 +118,21 @@ generate_readme_component_inputs:
         fi
       done
 
-      # Trim off the last trailing separator
+      echo "--- RAW INPUT BLOCK ---"
+      cat artifacts/_inputs_raw.yaml
+      echo "--- END RAW INPUT BLOCK ---"
+
+      # Strip trailing separator from the last file
       sed -i '/^---$/,$d' artifacts/_inputs_raw.yaml
 
-      # Export to JSON too (last file's inputs for now, used by some steps)
+      # Dump JSON version of last file's inputs for compatibility
       last_file="${COMPONENT_FILES[-1]}"
-      yq -o=json '.spec.inputs' "$last_file" > artifacts/_inputs.json
+      if [[ -f "$last_file" ]]; then
+        yq -o=json '.spec.inputs' "$last_file" > artifacts/_inputs.json
+      else
+        echo "{}" > artifacts/_inputs.json
+        echo "WARNING: Could not find last component spec file: $last_file" >&2
+      fi
 
     - echo "--- RAW INPUT BLOCK ---"
     - cat artifacts/_inputs_raw.yaml
