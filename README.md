@@ -96,7 +96,7 @@ Core settings used by StageFreight.
 
 ### Docker Registry 1 Config
 
-Note that you can configure more than 3 by overriding.
+Note that you can configure more than 3 by overriding
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
@@ -108,7 +108,7 @@ Note that you can configure more than 3 by overriding.
 
 ### Docker Registry 2 Config
 
-Note that you can configure more than 3 by overriding.
+Below this section are examples to configure more registries
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
@@ -120,7 +120,7 @@ Note that you can configure more than 3 by overriding.
 
 ### Docker Registry 3 Config
 
-Note that you can configure more than 3 by overriding.
+Below this section are examples to configure more registries
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
@@ -131,17 +131,17 @@ Note that you can configure more than 3 by overriding.
 | freight_docker_path_3 | 🚫 | "" | The full image path to push (i.e. prplanit/stagefreight) |
 | freight_docker_registry_3 | 🚫 | "" | A friendly name used in logs to identify this registry. |
 
-### GitLab CI/CD Inputs
+### GitLab Instance Config
 
-Inputs that configure GitLab Job behavior
+These are necessary for upload tasks, etc.
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
 | gitlab_domain | ✅ | "" | GitLab domain used to locate repository folders for uploads, etc. |
 
-### Gitlab- Release Info (Currently supports Docker Hub only.)
+### Gitlab Release Linking only work with Docker for now
 
-Configures embedding of the Docker Hub image into the release page.
+Configures embedding of the Docker Hub image into the release page
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
@@ -149,7 +149,7 @@ Configures embedding of the Docker Hub image into the release page.
 
 ### StageFreight Settings
 
-Core settings used by StageFreight.
+Core settings used by StageFreight
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
