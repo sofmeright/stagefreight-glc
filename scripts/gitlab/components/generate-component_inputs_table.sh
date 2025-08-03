@@ -11,27 +11,61 @@ TMP_JSON="/tmp/inputs.json"
 
 echo "🔍 Debug: Parsing group metadata and inputs..."
 
-# Step 1: Annotate inputs with _input_group_name and _input_group_desc
 awk '
   BEGIN {
-    current_group_name = "Ungrouped"
-    current_group_desc = ""
+    group_name = "Ungrouped"
+    group_desc = ""
+    current_key = ""
+    in_input = 0
   }
+
+  /^[[:space:]]*# input_section_name-/ {
+    sub(/^.*# input_section_name-/, "", $0)
+    gsub(/^[ \t]+|[ \t]+$/, "", $0)
+    group_name = $0
+    next
+  }
+
+  /^[[:space:]]*# input_section_desc-/ {
+    sub(/^.*# input_section_desc-/, "", $0)
+    gsub(/^[ \t]+|[ \t]+$/, "", $0)
+    group_desc = $0
+    next
+  }
+
+  /^[^[:space:]#][^:]*:/ {
+    current_key = $1
+    gsub(":", "", current_key)
+    print $0
+    in_input = 1
+    next
+  }
+
+  /^[[:space:]]+[a-zA-Z0-9_-]+:/ {
+    print $0
+    next
+  }
+
+  /^[[:space:]]*$/ {
+    if (in_input && current_key != "") {
+      print "  _input_group_name: \"" group_name "\""
+      print "  _input_group_desc: \"" group_desc "\""
+      in_input = 0
+      current_key = ""
+    }
+    print ""
+    next
+  }
+
   {
-    if ($0 ~ /^# input_section_name-/) {
-      sub(/^# input_section_name-/, "", $0)
-      gsub(/^[ \t]+|[ \t]+$/, "", $0)
-      current_group_name = $0
-    } else if ($0 ~ /^# input_section_desc-/) {
-      sub(/^# input_section_desc-/, "", $0)
-      gsub(/^[ \t]+|[ \t]+$/, "", $0)
-      current_group_desc = $0
-    } else if ($0 ~ /^[a-zA-Z0-9_]+:/) {
-      print "  _input_group_name: \"" current_group_name "\""
-      print "  _input_group_desc: \"" current_group_desc "\""
-      print $0
-    } else {
-      print $0
+    print $0
+  }
+
+  END {
+    # Close last input with group info
+    if (in_input && current_key != "") {
+      print "  _input_group_name: \"" group_name "\""
+      print "  _input_group_desc: \"" group_desc "\""
     }
   }
 ' "$COMPONENT_SPEC_FILE" > "$TMP_INPUTS"
