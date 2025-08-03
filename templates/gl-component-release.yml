@@ -46,7 +46,7 @@ stages:
   - release
 
 variables:
-  COMPONENT_SPEC_FILES: "$[[ inputs.component_spec_files.* ]]"
+  COMPONENT_SPEC_FILES: "$[[ join(\" \", inputs.component_spec_files) ]]"
   GITLAB_BRANCH: $[[ inputs.gitlab_branch ]]
   GITLAB_DOMAIN: $[[ inputs.gitlab_domain ]]
   GITLAB_TOKEN: $[[ inputs.gitlab_token ]]
