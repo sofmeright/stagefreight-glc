@@ -28,16 +28,15 @@ for f in "${file_array[@]}"; do
   if [[ -f "$f" ]]; then
     COMPONENT_NAME=$(basename "$f" | sed 's/\.[^.]*$//')
     echo "### Processing component: $COMPONENT_NAME"
-    
-    # Extract and trim inputs section before any document separator
-    yq '.spec.inputs' "$f" | sed '/^---$/q' > /tmp/inputs_tmp.yaml
 
-    # Append title and trimmed inputs to merged output
+    # Extract inputs cleanly
+    yq eval '.spec.inputs' "$f" > /tmp/inputs_tmp.yaml
+
+    # Append title and inputs (no trailing ---)
     echo "# --- $COMPONENT_NAME ---" >> "$TMP_MERGED_INPUTS"
     cat /tmp/inputs_tmp.yaml >> "$TMP_MERGED_INPUTS"
-    echo "---" >> "$TMP_MERGED_INPUTS"
+    echo "" >> "$TMP_MERGED_INPUTS"  # blank line separator
 
-    last_file="$f"
   else
     echo "WARNING: File not found: $f" >&2
   fi
