@@ -219,7 +219,7 @@ Below this section are examples to configure more registries
 
 ### GitLab Instance Config
 
-These are necessary for upload tasks, etc.
+These are necessary for upload tasks etc
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
