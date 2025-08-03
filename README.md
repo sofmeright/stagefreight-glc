@@ -14,7 +14,7 @@ Notice: We are not even in "BETA", this is early stages. We have strong ambition
 > To release the base feature set we will migrate our release pipeline logic from other projects.
 
 Progress:
-- ✅ Docker - Working but some further optimization can be done. (Docker Hub is the only endpoint publishable currently.)
+- ✅ Docker - Push to as many unique registries as you need. (Docker Hub is the only one you can embed in the release page, currently.)
 - ✅ Components - Basic features working as expected! Will implement more features in the future.
 - 🚫 Binary (deb/exe/etc.) release management ~ We actually have a project this is done in we forgot about so there is code to be recycled. But we will need time to implement.
 
