@@ -9,9 +9,11 @@ spec:
       default: "assets/badge-release-status.svg"
       description: "Final badge output path"
     component_spec_files:
-      default: "templates/gl-component-release.yml"
+      default: 
+        - "templates/gl-component-release.yml"
+        - "templates/gl-docker-release.yml"
       description: "Array of component spec files (for README input info)"
-      # type: array
+      type: array
     readme_file:
       default: "README.md"
       description: "README file to inject Markdown input map into"
@@ -81,18 +83,26 @@ generate_readme_component_inputs:
 
     - mkdir -p artifacts
 
-    # Extract inputs YAML block
-    - yq '.spec.inputs' "$COMPONENT_SPEC_FILES" > artifacts/_inputs_raw.yaml
-    - yq -o=json '.spec.inputs' "$COMPONENT_SPEC_FILES" > artifacts/_inputs.json
-    - sed -i '/^---$/,$d' artifacts/_inputs_raw.yaml
+    # Clear prior contents
+    - >-
+      : > artifacts/component_inputs.md
 
-    - echo "--- RAW INPUT BLOCK ---"
-    - cat artifacts/_inputs_raw.yaml
-    - echo "--- END RAW INPUT BLOCK ---"
+    # Loop through all component spec files
+    - |
+      for file in $COMPONENT_SPEC_FILES; do
+        NAME=$(basename "$file" | sed 's/\.[^.]*$//') # strip extension
+        echo "### $NAME" >> artifacts/component_inputs.md
+        echo "" >> artifacts/component_inputs.md
 
-    # Run script to generate component-inputs syntax infos.
-    - chmod +x scripts/gitlab/components/generate-component_inputs_table.sh
-    - ./scripts/gitlab/components/generate-component_inputs_table.sh artifacts/_inputs_raw.yaml artifacts/component_inputs.md
+        yq '.spec.inputs' "$file" > artifacts/_inputs_raw.yaml
+        yq -o=json '.spec.inputs' "$file" > artifacts/_inputs.json
+        sed -i '/^---$/,$d' artifacts/_inputs_raw.yaml
+
+        ./scripts/gitlab/components/generate-component_inputs_table.sh artifacts/_inputs_raw.yaml artifacts/_table.md
+
+        cat artifacts/_table.md >> artifacts/component_inputs.md
+        echo -e "\n---\n" >> artifacts/component_inputs.md
+      done
 
     - echo "--- Generated Markdown ---"
     - cat artifacts/component_inputs.md
