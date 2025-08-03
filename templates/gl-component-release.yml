@@ -148,9 +148,9 @@ generate_release_notes:
       git fetch --tags
 
       echo "Making generate-release_notes.sh executable..."
-      chmod +x scripts/gitlab/generate-release_notes.sh
+      chmod +x ./scripts/gitlab/generate-release_notes.sh
       echo "Execute generate-release_notes.sh and output to release.md..."
-      scripts/gitlab/generate-release_notes.sh > release.md
+      ./scripts/gitlab/generate-release_notes.sh > release.md
       test -s release.md || (echo "❌ release.md is empty!" && exit 1)
 
 create-release:
