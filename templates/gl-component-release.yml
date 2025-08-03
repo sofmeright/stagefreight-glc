@@ -81,43 +81,43 @@ generate_readme_component_inputs:
     - echo "Current tag- $CI_COMMIT_TAG"
 
     - mkdir -p artifacts
-    - > 
-      echo "" > artifacts/component_inputs.md  # Clear existing output
+
+    # Clear prior contents
+    - >-
+      : > artifacts/component_inputs.md
 
     - |
-      for SPEC_FILE in ${COMPONENT_SPEC_FILES[@]}; do
-        echo "Processing: $SPEC_FILE"
+      # Convert the stringified JSON array input to a real Bash array
+      component_files_json='$[[ inputs.component_spec_files ]]'
+      component_files_array=($(echo "$component_files_json" | jq -r '.[]'))
 
-        NAME=$(basename "$SPEC_FILE" | sed 's/\.[^.]*$//' | tr '-' ' ')
+      # Prepare final output file
+      > artifacts/component_inputs.md
 
-        # Extract raw inputs to temp file
-        yq '.spec.inputs' "$SPEC_FILE" > artifacts/_inputs_raw.yaml
-        yq -o=json '.spec.inputs' "$SPEC_FILE" > artifacts/_inputs.json
+      # Iterate each spec and generate its input table
+      for spec_file in "${component_files_array[@]}"; do
+        echo "Processing spec: $spec_file"
+        
+        # Extract inputs block
+        yq '.spec.inputs' "$spec_file" > artifacts/_inputs_raw.yaml
         sed -i '/^---$/,$d' artifacts/_inputs_raw.yaml
 
-        echo "--- RAW INPUT BLOCK ($NAME) ---"
-        cat artifacts/_inputs_raw.yaml
-        echo "--- END RAW INPUT BLOCK ---"
+        # Add section header
+        heading=$(basename "$spec_file" | sed 's/\.ya\?ml$//')
+        echo "### $heading" >> artifacts/component_inputs.md
+        echo "" >> artifacts/component_inputs.md
 
-        # Generate Markdown
-        chmod +x scripts/gitlab/components/generate-component_inputs_table.sh
-        scripts/gitlab/components/generate-component_inputs_table.sh artifacts/_inputs_raw.yaml artifacts/_tmp_component_inputs.md
+        # Generate table
+        ./scripts/gitlab/components/generate-component_inputs_table.sh artifacts/_inputs_raw.yaml >> artifacts/component_inputs.md
 
-        # Prefix with heading and separator
-        {
-          echo "## $NAME"
-          echo ""
-          echo "---"
-          echo ""
-          cat artifacts/_tmp_component_inputs.md
-          echo ""
-        } >> artifacts/component_inputs.md
+        echo -e "\n---\n" >> artifacts/component_inputs.md
       done
 
-    - echo "--- Combined Markdown ---"
+    - echo "--- Generated Markdown ---"
     - cat artifacts/component_inputs.md
     - echo "--- End of Markdown ---"
 
+    # Inject into README between custom tags
     - |
       START_TAG="<!-- START_C_INPUTS_MAP -->"
       END_TAG="<!-- END_C_INPUTS_MAP -->"
@@ -130,6 +130,7 @@ generate_readme_component_inputs:
         !inblock { print }
       ' "$README_FILE" > updated_readme.md
 
+    # Upload the updated README
     - |
       CONTENT_BASE64=$(base64 -w 0 updated_readme.md)
       ENCODED_FILE_PATH=$(printf '%s' "$README_FILE" | jq -s -R -r @uri)
