@@ -63,6 +63,67 @@ stages:
 # Component Inputs
 
 <!-- START_C_INPUTS_MAP -->
+## `gl-component-release`
+
+### GitLab CI/CD Inputs
+
+Inputs that configure GitLab Job behavior
+
+| Name | Required | Default | Description |
+|------|----------|---------|-------------|
+| branch_name | 🚫 | "main" | Branch to push badge/README changes to |
+| gitlab_branch | 🚫 | "main" | Target Git branch for commits. |
+| gitlab_domain | 🚫 | "https://gitlab.prplanit.com" | Base GitLab domain (used for badge & catalog links) |
+| gitlab_job | 🚫 | "run-ansible" | The intended name of the CI job spawned by this component. |
+| gitlab_stage | 🚫 | "ansible" | The intended name of the CI stage this job will run in. |
+| gitlab_token | 🚫 | "" | Token for authenticating GitLab API calls. |
+
+### StageFreight Settings
+
+Core settings used by StageFreight.
+
+| Name | Required | Default | Description |
+|------|----------|---------|-------------|
+| badge_template | 🚫 | "assets/badge-release-generic.svg" | SVG template for badge generation |
+| badge_output | 🚫 | "assets/badge-release-status.svg" | Final badge output path |
+| component_spec_files | 🚫 | ["templates/gl-component-release.yml","templates/gl-docker-release.yml"] | Array of component spec files (for README input info) |
+| readme_file | 🚫 | "README.md" | README file to inject Markdown input map into |
+
+
+---
+
+## `gl-docker-release`
+
+### Docker Hub Config
+
+Settings Needed to Publish on the Docker Hub.
+
+| Name | Required | Default | Description |
+|------|----------|---------|-------------|
+| docker_hub_user | ✅ | "" | Docker Hub username for image publishing |
+| docker_hub_pass | ✅ | "" | Docker Hub password or token for authentication |
+| docker_image | 🚫 | "prplanit/stagefreight" | Docker image name |
+
+### GitLab CI/CD Inputs
+
+Inputs that configure GitLab Job behavior
+
+| Name | Required | Default | Description |
+|------|----------|---------|-------------|
+| docker_tag | 🚫 | "$CI_COMMIT_TAG" | Docker tag to use (usually CI_COMMIT_TAG) |
+| gitlab_domain | 🚫 | "https://gitlab.prplanit.com" | GitLab domain |
+
+### StageFreight Settings
+
+Core settings used by StageFreight.
+
+| Name | Required | Default | Description |
+|------|----------|---------|-------------|
+| gitlab_token | 🚫 | "" | Token for authenticating GitLab API calls. |
+| badge-release-status_output | 🚫 | "assets/badge-release_status.svg" | Path to store "badge-release_status.svg" within parent pipelines repo. |
+
+
+---
 
 <!-- END_C_INPUTS_MAP -->
 
