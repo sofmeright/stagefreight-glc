@@ -6,53 +6,92 @@ OUTPUT_MD_FILE="$2"
 
 mkdir -p "$(dirname "$OUTPUT_MD_FILE")"
 
-# Step 1: Extract .spec.inputs block with comments preserved
-yq eval '.spec.inputs' "$COMPONENT_SPEC_FILE" > inputs_with_comments.yaml
+# Extract only the inputs block, preserving comments
+INPUTS_BLOCK=$(yq eval '.spec.inputs' "$COMPONENT_SPEC_FILE")
 
-# Step 2: Parse input sections and extract metadata using awk
-awk '
-  /^# input_section_name-/ {
-    section_name = substr($0, index($0,$3))
-  }
-  /^# input_section_desc-/ {
-    section_desc = substr($0, index($0,$3))
-  }
-  /^[^#[:space:]]/ {
-    key = $1
-    gsub(":", "", key)
-    keys[++i] = key
-    group[key] = section_name
-    group_desc[key] = section_desc
-  }
-' inputs_with_comments.yaml > /tmp/input_keys.meta
+# Save to a temp file for awk parsing
+TMP_INPUTS_FILE=$(mktemp)
+echo "$INPUTS_BLOCK" > "$TMP_INPUTS_FILE"
 
-# Step 3: Convert input YAML to JSON
-yq eval -o=json '.spec.inputs' "$COMPONENT_SPEC_FILE" > /tmp/input_data.json
+echo "📦 Debug: Raw inputs block extracted to: $TMP_INPUTS_FILE"
+cat "$TMP_INPUTS_FILE"
 
-# Step 4: Use jq + bash to build the grouped markdown
-{
-  echo "" > "$OUTPUT_MD_FILE"
-  for group_name in $(awk -F'=' '/^group\[/ { print $2 }' /tmp/input_keys.meta | sort -u); do
-    desc=$(awk -v g="$group_name" -F'= ' '$0 ~ "group_desc\\[" g "\\]" {print $2}' /tmp/input_keys.meta | head -n1)
-    echo "### ${group_name:-Ungrouped}" >> "$OUTPUT_MD_FILE"
-    echo "" >> "$OUTPUT_MD_FILE"
-    echo "${desc}" >> "$OUTPUT_MD_FILE"
-    echo "" >> "$OUTPUT_MD_FILE"
-    echo "| Name | Required | Default | Description |" >> "$OUTPUT_MD_FILE"
-    echo "|------|----------|---------|-------------|" >> "$OUTPUT_MD_FILE"
+# Step 1: Parse input keys and grouping metadata
+echo "🔍 Debug: Parsing group metadata and inputs..."
 
-    for key in $(awk -v g="$group_name" -F'= ' '$0 ~ "group\\[" g "\\]" {print $1}' /tmp/input_keys.meta | sed 's/group\[//;s/\]//'); do
-      jq -r --arg key "$key" '
-        .[$key] as $val |
-        "\($key) \($val.default // "") \($val.description // "") \((($val | has("default") | not) | tostring))"
-      ' /tmp/input_data.json | while read -r name def desc req; do
-        [[ "$req" == "true" ]] && req="✅" || req="🚫"
-        echo "| $name | $req | $def | $desc |" >> "$OUTPUT_MD_FILE"
-      done
-    done
-    echo "" >> "$OUTPUT_MD_FILE"
-  done
-} || {
-  echo "❌ Failed to parse and group inputs."
-  exit 1
+# JSON structure: [{ key, group, group_desc, default, description, required }]
+PARSED_INPUTS_JSON=$(awk '
+BEGIN {
+  group_name = "Ungrouped";
+  group_desc = "";
+  print "["
 }
+/^# input_section_name-/ {
+  group_name = substr($0, index($0,$3))
+  next
+}
+/^# input_section_desc-/ {
+  group_desc = substr($0, index($0,$3))
+  next
+}
+/^[[:space:]]*[a-zA-Z0-9_-]+:/ {
+  gsub(":", "", $1)
+  input_key = $1
+  input_data[input_key]["group"] = group_name
+  input_data[input_key]["group_desc"] = group_desc
+  input_keys[length(input_keys)] = input_key
+  print "{ \"key\": \"" input_key "\", \"group\": \"" group_name "\", \"group_desc\": \"" group_desc "\" },"
+}
+END {
+  print "{}]"  # Empty object to close trailing comma
+}' "$TMP_INPUTS_FILE")
+
+# Clean the JSON (remove last trailing empty object)
+INPUT_GROUPS=$(echo "$PARSED_INPUTS_JSON" | jq 'del(.[-1])')
+
+echo "📦 Debug: Parsed input metadata:"
+echo "$INPUT_GROUPS" | jq '.'
+
+# Step 2: Get clean input data values from the file (as JSON)
+INPUT_DATA=$(yq eval '.spec.inputs' "$COMPONENT_SPEC_FILE" | yq -o=json)
+echo "$INPUT_DATA" > /tmp/input_data.json
+
+# Step 3: Merge group metadata with values
+FINAL_JSON=$(jq -c --slurpfile metadata <(echo "$INPUT_GROUPS") '
+  reduce $metadata[] as $meta ([];
+    . + [{
+      key: $meta.key,
+      group: $meta.group,
+      group_desc: $meta.group_desc,
+      val: (input[$meta.key] // {}),
+      required: ((input[$meta.key] | has("default") | not)),
+      default: (input[$meta.key].default // ""),
+      description: (input[$meta.key].description // "")
+    }]
+  )
+' --argfile input /tmp/input_data.json)
+
+echo "📘 Debug: Final merged input values:"
+echo "$FINAL_JSON" | jq '.'
+
+# Step 4: Generate Markdown
+MARKDOWN=$(echo "$FINAL_JSON" | jq -r '
+  group_by(.group)
+  | map(
+      "### " + (.[0].group // "Ungrouped") + "\n\n" +
+      (.[0].group_desc // "") + "\n\n" +
+      "| Name | Required | Default | Description |\n" +
+      "|------|----------|---------|-------------|\n" +
+      (
+        map("| \(.key) | \(.required) | \(.default | @json) | \(.description) |") | join("\n")
+      ) + "\n"
+    )
+  | join("\n")
+')
+
+echo "$MARKDOWN" > "$OUTPUT_MD_FILE"
+
+# Step 5: Replace booleans with icons
+sed -i 's/| true |/| ✅ |/g; s/| false |/| 🚫 |/g' "$OUTPUT_MD_FILE"
+
+echo "✅ Done! Markdown written to: $OUTPUT_MD_FILE"
