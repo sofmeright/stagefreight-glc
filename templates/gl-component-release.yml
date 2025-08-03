@@ -8,7 +8,7 @@ spec:
     badge_output:
       default: "assets/badge-release-status.svg"
       description: "Final badge output path"
-    component_spec_file:
+    component_spec_files:
       default: "templates/gl-component-release.yml"
       description: "Array of component spec files (for README input info)"
       # type: array
@@ -44,6 +44,8 @@ stages:
   - release
 
 variables:
+  COMPONENT_SPEC_FILES: $[[ inputs.component_spec_files ]]
+  GITLAB_BRANCH: $[[ inputs.gitlab_branch ]]
   GITLAB_DOMAIN: $[[ inputs.gitlab_domain ]]
   GITLAB_TOKEN: $[[ inputs.gitlab_token ]]
   README_FILE: $[[ inputs.readme_file ]]
@@ -80,7 +82,7 @@ generate_readme_component_inputs:
       mkdir -p artifacts
       echo "Inherited artifacts from prior job/step[s]."
       tree artifacts assets scripts templates
-    - yq '.spec.inputs' "$[[ inputs.component_spec_file ]]" > artifacts/_inputs_raw.yaml
+    - yq '.spec.inputs' "$COMPONENT_SPEC_FILES" > artifacts/_inputs_raw.yaml
     - sed -i '/^---$/,$d' artifacts/_inputs_raw.yaml
     - chmod +x scripts/gitlab/components/generate-component_inputs_table.sh
     - ./scripts/gitlab/components/generate-component_inputs_table.sh artifacts/_inputs_raw.yaml "artifacts/component_inputs.md"
@@ -92,12 +94,12 @@ generate_readme_component_inputs:
         !inblock { print }
       ' "$README_FILE" > artifacts/updated_readme.md
     - CONTENT_BASE64=$(base64 -w 0 artifacts/updated_readme.md)
-    - ENCODED_FILE_PATH=$(printf '%s' "$[[ inputs.readme_file ]]" | jq -s -R -r @uri)
+    - ENCODED_FILE_PATH=$(printf '%s' "$README_FILE" | jq -s -R -r @uri)
     - >
       curl --request PUT --header "PRIVATE-TOKEN: $GITLAB_TOKEN"
         --header "Content-Type: application/json"
         --data "{
-          \"branch\": \"$[[ inputs.branch_name ]]\",
+          \"branch\": \"$GITLAB_BRANCH\",
           \"content\": \"$CONTENT_BASE64\",
           \"commit_message\": \"Update component input map for $CI_COMMIT_TAG\",
           \"encoding\": \"base64\"
