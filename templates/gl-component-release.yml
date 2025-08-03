@@ -9,7 +9,7 @@ spec:
       default: "assets/badge-release-status.svg"
       description: "Final badge output path"
     component_spec_files:
-      default:
+      default: 
         - "templates/gl-component-release.yml"
         - "templates/gl-docker-release.yml"
       description: "Array of component spec files (for README input info)"
@@ -82,38 +82,49 @@ generate_readme_component_inputs:
 
     - mkdir -p artifacts
 
-    # Clear prior contents
-    - >-
-      : > artifacts/component_inputs.md
+    # Dump raw input array for inspection
+    - echo "component_spec_files raw input:" && echo "$[[ inputs.component_spec_files ]]"
 
+    # Convert the array string into a real Bash array
+    - IFS=$'\n' read -rd '' -a COMPONENT_FILES <<< "$(printf "%s\n" $[[ inputs.component_spec_files ]])"
+    - echo "Parsed component spec files:"
+    - printf ' - %s\n' "${COMPONENT_FILES[@]}"
+
+    # Clean target file
+    - : > artifacts/component_inputs.md
+
+    # Loop through and process each file
     - |
-      # Convert the stringified JSON array input to a real Bash array
-      component_files_json='$[[ inputs.component_spec_files ]]'
-      component_files_array=($(echo "$component_files_json" | jq -r '.[]'))
+      for COMPONENT_FILE in "${COMPONENT_FILES[@]}"; do
+        if [[ ! -f "$COMPONENT_FILE" ]]; then
+          echo "❌ File not found: $COMPONENT_FILE"
+          continue
+        fi
 
-      # Prepare final output file
-      > artifacts/component_inputs.md
+        COMPONENT_NAME=$(basename "$COMPONENT_FILE" | sed 's/\.[^.]*$//')
 
-      # Iterate each spec and generate its input table
-      for spec_file in "${component_files_array[@]}"; do
-        echo "Processing spec: $spec_file"
-        
-        # Extract inputs block
-        yq '.spec.inputs' "$spec_file" > artifacts/_inputs_raw.yaml
+        echo "📦 Processing $COMPONENT_FILE (Component: $COMPONENT_NAME)"
+        yq '.spec.inputs' "$COMPONENT_FILE" > artifacts/_inputs_raw.yaml
+        yq -o=json '.spec.inputs' "$COMPONENT_FILE" > artifacts/_inputs.json
         sed -i '/^---$/,$d' artifacts/_inputs_raw.yaml
 
-        # Add section header
-        heading=$(basename "$spec_file" | sed 's/\.ya\?ml$//')
-        echo "### $heading" >> artifacts/component_inputs.md
+        echo "--- RAW INPUT BLOCK for $COMPONENT_NAME ---"
+        cat artifacts/_inputs_raw.yaml
+        echo "--- END RAW INPUT BLOCK ---"
+
+        # Generate Markdown
+        chmod +x scripts/gitlab/components/generate-component_inputs_table.sh
+        ./scripts/gitlab/components/generate-component_inputs_table.sh artifacts/_inputs_raw.yaml artifacts/_inputs_temp.md
+
+        echo "### $COMPONENT_NAME Component Inputs" >> artifacts/component_inputs.md
         echo "" >> artifacts/component_inputs.md
-
-        # Generate table
-        ./scripts/gitlab/components/generate-component_inputs_table.sh artifacts/_inputs_raw.yaml >> artifacts/component_inputs.md
-
-        echo -e "\n---\n" >> artifacts/component_inputs.md
+        cat artifacts/_inputs_temp.md >> artifacts/component_inputs.md
+        echo "" >> artifacts/component_inputs.md
+        echo "---" >> artifacts/component_inputs.md
+        echo "" >> artifacts/component_inputs.md
       done
 
-    - echo "--- Generated Markdown ---"
+    - echo "--- Combined Generated Markdown ---"
     - cat artifacts/component_inputs.md
     - echo "--- End of Markdown ---"
 
