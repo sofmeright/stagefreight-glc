@@ -1,10 +1,56 @@
 #!/bin/bash
 set -euo pipefail
 
-COMPONENT_SPEC_FILE="$1"
+raw_files="$1"
 OUTPUT_MD_FILE="$2"
 
 mkdir -p "$(dirname "$OUTPUT_MD_FILE")"
+
+echo "🔍 Debug: Parsing raw input file list string..."
+echo "Raw input: $raw_files"
+
+# Strip brackets and quotes, remove spaces around commas, split into array
+files=$(echo "$raw_files" | sed -e 's/^\[\(.*\)\]$/\1/' -e 's/"//g' -e 's/, */,/g')
+IFS=',' read -r -a file_array <<< "$files"
+
+echo "Files to process:"
+for f in "${file_array[@]}"; do
+  echo " - [$f]"
+done
+
+# Create merged inputs file
+TMP_MERGED_INPUTS="/tmp/merged_inputs.yaml"
+> "$TMP_MERGED_INPUTS"
+
+last_file=""
+
+for f in "${file_array[@]}"; do
+  if [[ -f "$f" ]]; then
+    COMPONENT_NAME=$(basename "$f" | sed 's/\.[^.]*$//')
+    echo "### Processing component: $COMPONENT_NAME"
+
+    tmpfile=/tmp/inputs_tmp.yaml
+    yq eval -o=yaml -d0 '.spec.inputs' "$f" > "$tmpfile"
+
+    if grep -qv '^null$' "$tmpfile"; then
+      echo "# --- $COMPONENT_NAME ---" >> "$TMP_MERGED_INPUTS"
+      cat "$tmpfile" >> "$TMP_MERGED_INPUTS"
+      echo "" >> "$TMP_MERGED_INPUTS"
+    else
+      echo "Warning: .spec.inputs empty or null in $f, skipping."
+    fi
+  else
+    echo "WARNING: File not found: $f" >&2
+  fi
+done
+
+echo "🔍 Debug: Merged inputs YAML content:"
+cat "$TMP_MERGED_INPUTS"
+
+# Continue with the rest of your script unchanged, setting:
+COMPONENT_SPEC_FILE="$TMP_MERGED_INPUTS"
+
+# (The rest of your original script below, unchanged:)
 
 TMP_INPUTS="/tmp/inputs_with_groups.yaml"
 TMP_JSON="/tmp/inputs.json"
@@ -86,7 +132,7 @@ awk '
 ' "$COMPONENT_SPEC_FILE" > "$TMP_INPUTS"
 
 echo "📦 Debug: Annotated inputs written to: $TMP_INPUTS"
-cat "$TMP_INPUTS" | sed 's/^/    /'
+sed 's/^/    /' "$TMP_INPUTS"
 
 # Step 2: Convert to JSON
 yq eval -o=json "$TMP_INPUTS" > "$TMP_JSON"
