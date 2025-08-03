@@ -19,28 +19,23 @@ for f in "${file_array[@]}"; do
 done
 
 # Create merged inputs file
-TMP_MERGED_INPUTS="/tmp/merged_inputs.yaml"
-> "$TMP_MERGED_INPUTS"
+TMP_MERGED_INPUTS="/tmp/inputs_with_groups.yaml"
+: > "$TMP_MERGED_INPUTS"  # Truncate before writing
 
-last_file=""
-
-for f in "${file_array[@]}"; do
-  if [[ -f "$f" ]]; then
-    COMPONENT_NAME=$(basename "$f" | sed 's/\.[^.]*$//')
-    echo "### Processing component: $COMPONENT_NAME"
-    
-    # Extract and trim inputs section before any document separator
-    yq '.spec.inputs' "$f" | sed '/^---$/q' > /tmp/inputs_tmp.yaml
-
-    # Append title and trimmed inputs to merged output
-    echo "# --- $COMPONENT_NAME ---" >> "$TMP_MERGED_INPUTS"
-    cat /tmp/inputs_tmp.yaml >> "$TMP_MERGED_INPUTS"
-    echo "---" >> "$TMP_MERGED_INPUTS"
-
-    last_file="$f"
-  else
-    echo "WARNING: File not found: $f" >&2
+for file in "${component_spec_files_arr[@]}"; do
+  echo "🔄 Processing component spec: $file"
+  
+  if [[ ! -f "$file" ]]; then
+    echo "⚠️  File not found: $file" >&2
+    continue
   fi
+
+  group_title=$(basename "$file" .yml)
+  echo "---" >> "$TMP_MERGED_INPUTS"
+  echo "# --- $group_title ---" >> "$TMP_MERGED_INPUTS"
+
+  # Strip any trailing YAML docs before appending
+  awk '/^---/ {exit} {print}' "$file" >> "$TMP_MERGED_INPUTS"
 done
 
 echo "🔍 Debug: Merged inputs YAML content:"
