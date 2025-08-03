@@ -19,15 +19,19 @@ awk '
     group_desc = ""
     next_group_name = ""
     next_group_desc = ""
+    pending_group_change = 0
   }
 
+  # Capture group name from comment
   /^[[:space:]]*# input_section_name-/ {
     sub(/^.*# input_section_name-/, "", $0)
     gsub(/^[ \t]+|[ \t]+$/, "", $0)
     next_group_name = $0
+    pending_group_change = 1
     next
   }
 
+  # Capture group description from comment
   /^[[:space:]]*# input_section_desc-/ {
     sub(/^.*# input_section_desc-/, "", $0)
     gsub(/^[ \t]+|[ \t]+$/, "", $0)
@@ -35,21 +39,31 @@ awk '
     next
   }
 
+  # Skip other comments
+  /^[[:space:]]*#/ {
+    next
+  }
+
+  # Main input key (top level, not indented)
   /^[^[:space:]#][^:]*:/ {
-    if (next_group_name != "") {
+    # If we have a pending group change, apply it now
+    if (pending_group_change && next_group_name != "") {
       group_name = next_group_name
       next_group_name = ""
+      pending_group_change = 0
     }
     if (next_group_desc != "") {
       group_desc = next_group_desc
       next_group_desc = ""
     }
 
+    # Close previous input if we were in one
     if (in_input && current_key != "") {
       print "  _input_group_name: \"" group_name "\""
       print "  _input_group_desc: \"" group_desc "\""
     }
 
+    # Start new input
     current_key = $1
     gsub(":", "", current_key)
     print $0
@@ -57,11 +71,13 @@ awk '
     next
   }
 
+  # Indented properties (description, default, type, etc.)
   /^[[:space:]]+[a-zA-Z0-9_-]+:/ {
     print $0
     next
   }
 
+  # Empty lines - close current input if we were in one
   /^[[:space:]]*$/ {
     if (in_input && current_key != "") {
       print "  _input_group_name: \"" group_name "\""
@@ -73,10 +89,12 @@ awk '
     next
   }
 
+  # Everything else (array items, continuation lines, etc.)
   {
     print $0
   }
 
+  # Handle final input at end of file
   END {
     if (in_input && current_key != "") {
       print "  _input_group_name: \"" group_name "\""
@@ -93,21 +111,24 @@ yq eval -o=json "$TMP_INPUTS" > "$TMP_JSON"
 
 echo "📦 Debug: JSON output written to: $TMP_JSON"
 
-# Step 3: Generate grouped Markdown using jq
+# Step 3: Generate grouped Markdown using jq with improved required field detection
 jq -r '
   to_entries
   | map({
       key: .key,
-      group: .value._input_group_name,
+      group: (.value._input_group_name // "Ungrouped"),
       group_desc: (.value._input_group_desc // ""),
-      required: ((.value | type == "object") and (.value | has("default")) | not),
+      required: (
+        (.value | type == "object") and 
+        ((.value.default // null) == null or (.value.default // null) == "")
+      ),
       default: (.value.default // ""),
       description: (.value.description // "")
     })
   | group_by(.group)
   | map(
-      "### " + (.[0].group // "Ungrouped") + "\n\n" +
-      (.[0].group_desc) + "\n\n" +
+      "### " + (.[0].group // "Ungrouped") + "\n" +
+      (if (.[0].group_desc // "") != "" then (.[0].group_desc) + "\n" else "" end) +
       "| Name | Required | Default | Description |\n" +
       "|------|----------|---------|-------------|\n" +
       (
