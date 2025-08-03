@@ -1,7 +1,7 @@
 spec:
   inputs:
     # input_section_name- GitLab Instance Config
-    # input_section_desc- These are necessary for upload tasks, etc.
+    # input_section_desc- These are necessary for upload tasks etc
     gitlab_domain:
       description: "GitLab domain used to locate repository folders for uploads, etc."
     gitlab_token:
