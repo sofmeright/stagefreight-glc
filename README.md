@@ -63,22 +63,6 @@ stages:
 # Component Inputs
 
 <!-- START_C_INPUTS_MAP -->
-### Ungrouped
-
-
-
-| Name | Required | Default | Description |
-|------|----------|---------|-------------|
-| badge_template | 🚫 | assets/badge-release-generic.svg | SVG template for badge generation |
-| badge_output | 🚫 | assets/badge-release-status.svg | Final badge output path |
-| component_spec_files | 🚫 | templates/gl-component-release.yml | Array of component spec files (for README input info) |
-| readme_file | 🚫 | README.md | README file to inject Markdown input map into |
-| branch_name | 🚫 | main | Branch to push badge/README changes to |
-| gitlab_branch | 🚫 | main | Target Git branch for commits. |
-| gitlab_domain | 🚫 | https://gitlab.prplanit.com | Base GitLab domain (used for badge & catalog links) |
-| gitlab_job | 🚫 | run-ansible | The intended name of the CI job spawned by this component. |
-| gitlab_stage | 🚫 | ansible | The intended name of the CI stage this job will run in. |
-| gitlab_token | 🚫 |  | Token for authenticating GitLab API calls. |
 
 <!-- END_C_INPUTS_MAP -->
 
@@ -110,21 +94,60 @@ stages:
     - Details:
         - Extracts .spec.inputs from the component spec file using yq.
         - Uses a custom script generate-component_inputs_table.sh to convert inputs into a grouped Markdown table.
-        - Injects the generated table into the README between markers <!-- START_C_INPUTS_MAP --> and <!-- END_C_INPUTS_MAP -->.
-### Ungrouped
+        - Injects the generated table into the README between markers <!-- START_C_INPUTS_(...) --> and <!-- END_C_(...)_MAP -->.
+        - Pushes the updated README back to the repository via GitLab API.
+    - Artifacts: Outputs the generated Markdown table as an artifact for debugging/inspection.
+4. update_release_pipeline_status_badge
+    - Trigger: Runs after create-release, on tags.
+    - Purpose: Creates or updates an SVG badge reflecting the current pipeline status (passed, failed, running).
+    - Details:
+        - Queries all jobs in the current pipeline.
+        - Determines overall status based on job statuses.
+        - Replaces color and status placeholders in the SVG template.
+        - Commits the updated badge SVG back to the repository.
+    - Artifacts: Stores the badge SVG temporarily.
 
+## gl-component-release: Scripts
 
+1. `generate-release_notes.sh`
+- Shell script to generate release notes by:
+    - Validating the release tag.
+    - Determining the previous tag.
+    - Extracting tag message and commit log between tags.
+    - Outputs formatted Markdown release notes.
 
-| Name | Required | Default | Description |
-|------|----------|---------|-------------|
-| badge_template | 🚫 | assets/badge-release-generic.svg | SVG template for badge generation |
-| badge_output | 🚫 | assets/badge-release-status.svg | Final badge output path |
-| component_spec_files | 🚫 | templates/gl-component-release.yml | Array of component spec files (for README input info) |
-| readme_file | 🚫 | README.md | README file to inject Markdown input map into |
-| branch_name | 🚫 | main | Branch to push badge/README changes to |
-| gitlab_branch | 🚫 | main | Target Git branch for commits. |
-| gitlab_domain | 🚫 | https://gitlab.prplanit.com | Base GitLab domain (used for badge & catalog links) |
-| gitlab_job | 🚫 | run-ansible | The intended name of the CI job spawned by this component. |
-| gitlab_stage | 🚫 | ansible | The intended name of the CI stage this job will run in. |
-| gitlab_token | 🚫 |  | Token for authenticating GitLab API calls. |
+2. `generate-component_inputs_table.sh`
+- Bash script that:
+    - Converts the component inputs YAML to JSON.
+    - Uses jq to group inputs by _input_group_name and format a Markdown table with columns: Name, Required, Default, Description.
+    - Converts boolean required flags to checkmark/emoji.
+    - Outputs Markdown for injection into README.
 
+## How to Build Your Own Component for Use with StageFreight
+
+1. Define your component inputs clearly in a YAML spec file (e.g. templates/run.yml) under .spec.inputs.
+2. Use metadata fields _input_group_name and _input_group_desc to logically group related inputs for documentation.
+3. Include description, default values, and mark required inputs by omitting defaults.
+4. Prepare your README with placeholder markers (without the parenthesis I used to stop it from replacing the example) for inputs injection:
+
+    ```markdown
+    ...
+    <!-- START_C_INPUTS_(...) -->
+    <!-- END_C_(...)_MAP -->
+    ...
+    ```
+5. Provide a badge SVG template with placeholders {{COLOR}} and {{STATUS}} for dynamic replacement.
+6. Add the StageFreight component to your .gitlab-ci.yml, passing the required inputs to connect your spec, README, badge paths, and GitLab domain.
+7. Tag your releases in Git to trigger the pipeline.
+> Optionally extend the pipeline by adding build/release jobs (Docker, Windows, Linux) before or after the StageFreight jobs, integrating your actual artifact generation.
+
+## Notes & Future Work
+> Currently, StageFreight supports release orchestration for Docker and Windows builds with plans for Linux binary or DEB package publishing.
+
+The release notes script can be customized to better reflect project-specific changelog conventions.
+
+Badge and input documentation injection promotes transparency and ease of use for component consumers.
+
+The component is designed for reuse and extension across multiple projects and artifact types within your GitLab ecosystem.
+
+This documentation should give you a clear understanding of how StageFreight works, how to use it, and how to build your own GitLab components compatible with its release tooling. We hope you are hyped as we were to start using this tool!
