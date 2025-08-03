@@ -82,8 +82,9 @@ generate_readme_component_inputs:
 
     - mkdir -p artifacts
 
+    - chmod +x scripts/gitlab/components/generate-component_inputs_batch.sh
     - chmod +x scripts/gitlab/components/generate-component_inputs_table.sh
-    - ./scripts/gitlab/components/generate-component_inputs_table.sh "$[[ inputs.component_spec_files ]]" artifacts/component_inputs.md
+    - ./scripts/gitlab/components/generate-component_inputs_batch.sh "$[[ inputs.component_spec_files ]]" artifacts/component_inputs.md
 
     - echo "--- Generated Markdown ---"
     - cat artifacts/component_inputs.md
