@@ -28,7 +28,7 @@ for f in "${file_array[@]}"; do
   tmp_md="/tmp/${name}_inputs.md"
   echo "⚙️  Generating Markdown for $f -> $tmp_md"
 
-  ./generate-component_inputs_table.sh "$f" "$tmp_md"
+  ./scripts/gitlab/components/generate-component_inputs_table.sh "$f" "$tmp_md"
 
   echo "📌 Appending to output file with header..."
   {
