@@ -13,30 +13,39 @@ echo "🔍 Debug: Parsing group metadata and inputs..."
 
 awk '
   BEGIN {
-    group_name = "Ungrouped"
-    group_desc = ""
     current_key = ""
     in_input = 0
-    printed_group = 0
+    group_name = "Ungrouped"
+    group_desc = ""
+    next_group_name = ""
+    next_group_desc = ""
   }
 
   /^[[:space:]]*# input_section_name-/ {
     sub(/^.*# input_section_name-/, "", $0)
     gsub(/^[ \t]+|[ \t]+$/, "", $0)
-    group_name = $0
+    next_group_name = $0
     next
   }
 
   /^[[:space:]]*# input_section_desc-/ {
     sub(/^.*# input_section_desc-/, "", $0)
     gsub(/^[ \t]+|[ \t]+$/, "", $0)
-    group_desc = $0
+    next_group_desc = $0
     next
   }
 
   /^[^[:space:]#][^:]*:/ {
+    if (next_group_name != "") {
+      group_name = next_group_name
+      next_group_name = ""
+    }
+    if (next_group_desc != "") {
+      group_desc = next_group_desc
+      next_group_desc = ""
+    }
+
     if (in_input && current_key != "") {
-      # Insert group tags for the previous input block
       print "  _input_group_name: \"" group_name "\""
       print "  _input_group_desc: \"" group_desc "\""
     }
