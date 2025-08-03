@@ -63,6 +63,29 @@ stages:
 # Component Inputs
 
 <!-- START_C_INPUTS_MAP -->
+### Ungrouped
+
+
+
+| Name | Required | Default | Description |
+|------|----------|---------|-------------|
+| badge_template | 🚫 | assets/badge-release-generic.svg | SVG template for badge generation |
+| badge_output | 🚫 | assets/badge-release-status.svg | Final badge output path |
+| component_spec_files | 🚫 | templates/gl-component-release.yml | Array of component spec files (for README input info) |
+| branch_name | 🚫 | main | Branch to push badge/README changes to |
+| gitlab_branch | 🚫 | main | Target Git branch for commits. |
+| gitlab_domain | 🚫 | https://gitlab.prplanit.com | Base GitLab domain (used for badge & catalog links) |
+| gitlab_job | 🚫 | run-ansible | The intended name of the CI job spawned by this component. |
+| gitlab_stage | 🚫 | ansible | The intended name of the CI stage this job will run in. |
+
+### GitLab CI/CD Inputs
+
+Core settings used by StageFreight.
+
+| Name | Required | Default | Description |
+|------|----------|---------|-------------|
+| readme_file | 🚫 | README.md | README file to inject Markdown input map into |
+| gitlab_token | 🚫 |  | Token for authenticating GitLab API calls. |
 
 <!-- END_C_INPUTS_MAP -->
 
