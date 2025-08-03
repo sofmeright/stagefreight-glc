@@ -94,15 +94,42 @@ Core settings used by StageFreight.
 
 ## `gl-docker-release`
 
-### Docker Hub Config
+### Docker Registry 1 Config
 
-Settings Needed to Publish on the Docker Hub.
+Note that you can configure more than 3 by overriding.
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
-| docker_hub_user | ✅ | "" | Docker Hub username for image publishing |
-| docker_hub_pass | ✅ | "" | Docker Hub password or token for authentication |
-| docker_image | 🚫 | "prplanit/stagefreight" | Docker image name |
+| freight_pipeline_status_file | 🚫 | "assets/badge-release_status.svg" | Path to store "badge-release_status.svg" within parent pipelines repo. |
+| freight_docker_url_1 | 🚫 | "" | The registry endpoint to push the Docker image to (i.e. docker.io) |
+| freight_docker_user_1 | 🚫 | "" | The username used to authenticate with the registry. |
+| freight_docker_pass_1 | 🚫 | "" | The password or access token for authentication. |
+| freight_docker_path_1 | 🚫 | "" | The full image path to push (i.e. prplanit/stagefreight) |
+
+### Docker Registry 2 Config
+
+Note that you can configure more than 3 by overriding.
+
+| Name | Required | Default | Description |
+|------|----------|---------|-------------|
+| freight_docker_registry_1 | 🚫 | "" | A friendly name used in logs to identify this registry. |
+| freight_docker_url_2 | 🚫 | "" | The registry endpoint to push the Docker image to (i.e. docker.io) |
+| freight_docker_user_2 | 🚫 | "" | The username used to authenticate with the registry. |
+| freight_docker_pass_2 | 🚫 | "" | The password or access token for authentication. |
+| freight_docker_path_2 | 🚫 | "" | The full image path to push (i.e. prplanit/stagefreight) |
+
+### Docker Registry 3 Config
+
+Note that you can configure more than 3 by overriding.
+
+| Name | Required | Default | Description |
+|------|----------|---------|-------------|
+| freight_docker_registry_2 | 🚫 | "" | A friendly name used in logs to identify this registry. |
+| freight_docker_url_3 | 🚫 | "" | The registry endpoint to push the Docker image to (i.e. docker.io) |
+| freight_docker_user_3 | 🚫 | "" | The username used to authenticate with the registry. |
+| freight_docker_pass_3 | 🚫 | "" | The password or access token for authentication. |
+| freight_docker_path_3 | 🚫 | "" | The full image path to push (i.e. prplanit/stagefreight) |
+| freight_docker_registry_3 | 🚫 | "" | A friendly name used in logs to identify this registry. |
 
 ### GitLab CI/CD Inputs
 
@@ -110,8 +137,15 @@ Inputs that configure GitLab Job behavior
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
-| docker_tag | 🚫 | "$CI_COMMIT_TAG" | Docker tag to use (usually CI_COMMIT_TAG) |
-| gitlab_domain | 🚫 | "https://gitlab.prplanit.com" | GitLab domain |
+| gitlab_domain | ✅ | "" | GitLab domain used to locate repository folders for uploads, etc. |
+
+### Gitlab- Release Info (Currently supports Docker Hub only.)
+
+Configures embedding of the Docker Hub image into the release page.
+
+| Name | Required | Default | Description |
+|------|----------|---------|-------------|
+| gitlab_token | ✅ | "" | Token for authenticating GitLab API calls. |
 
 ### StageFreight Settings
 
@@ -119,8 +153,7 @@ Core settings used by StageFreight.
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
-| gitlab_token | 🚫 | "" | Token for authenticating GitLab API calls. |
-| badge-release-status_output | 🚫 | "assets/badge-release_status.svg" | Path to store "badge-release_status.svg" within parent pipelines repo. |
+| docker_release_path | 🚫 | "" | Path/Name of the DockerHub Image to embed on the release page. |
 
 
 ---
