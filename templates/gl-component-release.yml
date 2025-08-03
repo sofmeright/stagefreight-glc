@@ -135,15 +135,23 @@ generate_release_notes:
       - assets/
       - scripts/
     expire_in: 1 hour
-  before_script:
-    - apk add --no-cache bash curl git tree
-    - echo "Listing files for debugging"
-    - tree scripts
-    - cat ./scripts/gitlab/generate-release_notes.sh
-    - chmod +x scripts/gitlab/generate-release_notes.sh
+  before_script: |
+    apk add --no-cache bash curl git tree
   script:
-    - scripts/gitlab/generate-release_notes.sh > release.md
-    - test -s release.md || (echo "❌ release.md is empty!" && exit 1)
+    - |
+      echo "Listing files for debugging:"
+      tree scripts
+      echo "Content of generate-release_notes.sh:"
+      cat ./scripts/gitlab/generate-release_notes.sh
+
+      echo "Fetching tags history to provide info about changes..."
+      git fetch --tags  # ⬅️ Add this line
+
+      echo "Making generate-release_notes.sh executable..."
+      chmod +x scripts/gitlab/generate-release_notes.sh
+      echo "Execute generate-release_notes.sh and output to release.md..."
+      scripts/gitlab/generate-release_notes.sh > release.md
+      test -s release.md || (echo "❌ release.md is empty!" && exit 1)
 
 create-release:
   stage: release
