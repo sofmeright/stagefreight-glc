@@ -1,23 +1,23 @@
 spec:
   inputs:
-    # input_section_name- GitLab CI/CD Inputs
-    # input_section_desc- Inputs that configure GitLab Job behavior
+    # input_section_name- GitLab Instance Config
+    # input_section_desc- These are necessary for upload tasks, etc.
     gitlab_domain:
       description: "GitLab domain used to locate repository folders for uploads, etc."
     gitlab_token:
       description: 'Token for authenticating GitLab API calls.'
-    # input_section_name- Gitlab- Release Info (Currently supports Docker Hub only.)
-    # input_section_desc- Configures embedding of the Docker Hub image into the release page.
+    # input_section_name- Gitlab Release Linking only work with Docker for now
+    # input_section_desc- Configures embedding of the Docker Hub image into the release page
     docker_release_path:
       description: "Path/Name of the DockerHub Image to embed on the release page."
       default: ""
     # input_section_name- StageFreight Settings
-    # input_section_desc- Core settings used by StageFreight.
+    # input_section_desc- Core settings used by StageFreight
     freight_pipeline_status_file:
       description: 'Path to store "badge-release_status.svg" within parent pipelines repo.'
       default: "assets/badge-release_status.svg"
     # input_section_name- Docker Registry 1 Config
-    # input_section_desc- Note that you can configure more than 3 by overriding.
+    # input_section_desc- Note that you can configure more than 3 by overriding
     freight_docker_url_1:
       description: "The registry endpoint to push the Docker image to (i.e. docker.io)"
       type: string
@@ -39,7 +39,7 @@ spec:
       type: string
       default: ""
     # input_section_name- Docker Registry 2 Config
-    # input_section_desc- Note that you can configure more than 3 by overriding.
+    # input_section_desc- Below this section are examples to configure more registries
     freight_docker_url_2:
       description: "The registry endpoint to push the Docker image to (i.e. docker.io)"
       type: string
@@ -61,7 +61,7 @@ spec:
       type: string
       default: ""
     # input_section_name- Docker Registry 3 Config
-    # input_section_desc- Note that you can configure more than 3 by overriding.
+    # input_section_desc- Below this section are examples to configure more registries
     freight_docker_url_3:
       description: "The registry endpoint to push the Docker image to (i.e. docker.io)"
       type: string
@@ -76,7 +76,6 @@ spec:
       default: ""
     freight_docker_path_3:
       description: "The full image path to push (i.e. prplanit/stagefreight)"
-      default: ""
       type: string
       default: ""
     freight_docker_registry_3:
