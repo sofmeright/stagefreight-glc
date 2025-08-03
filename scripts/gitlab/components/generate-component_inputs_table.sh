@@ -9,8 +9,8 @@ mkdir -p "$(dirname "$OUTPUT_MD_FILE")"
 echo "🔍 Debug: Parsing raw input file list string..."
 echo "Raw input: $raw_files"
 
-# Strip brackets and quotes, split into array
-files=$(echo "$raw_files" | sed -e 's/^\[\(.*\)\]$/\1/' -e 's/"//g')
+# Strip brackets and quotes, remove spaces around commas, split into array
+files=$(echo "$raw_files" | sed -e 's/^\[\(.*\)\]$/\1/' -e 's/"//g' -e 's/, */,/g')
 IFS=',' read -r -a file_array <<< "$files"
 
 echo "Files to process:"
@@ -26,7 +26,9 @@ last_file=""
 
 for f in "${file_array[@]}"; do
   if [[ -f "$f" ]]; then
-    echo "# $f" >> "$TMP_MERGED_INPUTS"
+    COMPONENT_NAME=$(basename "$f" | sed 's/\.[^.]*$//')
+    echo "### Processing component: $COMPONENT_NAME"
+    echo "# --- $COMPONENT_NAME ---" >> "$TMP_MERGED_INPUTS"
     yq '.spec.inputs' "$f" >> "$TMP_MERGED_INPUTS"
     echo "---" >> "$TMP_MERGED_INPUTS"
     last_file="$f"
@@ -41,7 +43,7 @@ sed -i '/^---$/,$d' "$TMP_MERGED_INPUTS"
 echo "🔍 Debug: Merged inputs YAML content:"
 cat "$TMP_MERGED_INPUTS"
 
-# Use merged YAML as input for your existing group metadata parsing & markdown gen logic
+# Continue with the rest of your script unchanged, setting:
 COMPONENT_SPEC_FILE="$TMP_MERGED_INPUTS"
 
 # (The rest of your original script below, unchanged:)

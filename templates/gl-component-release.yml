@@ -82,15 +82,6 @@ generate_readme_component_inputs:
 
     - mkdir -p artifacts
 
-    # Pass the *raw* string array to the script and let it parse/merge/process.
-    # The script will:
-    #   1) parse the array string,
-    #   2) load each YAML spec,
-    #   3) merge the inputs blocks,
-    #   4) generate the markdown table
-    #
-    # This way you keep your GitLab CI job simple and focused on orchestration.
-    #
     - chmod +x scripts/gitlab/components/generate-component_inputs_table.sh
     - ./scripts/gitlab/components/generate-component_inputs_table.sh "$[[ inputs.component_spec_files ]]" artifacts/component_inputs.md
 
