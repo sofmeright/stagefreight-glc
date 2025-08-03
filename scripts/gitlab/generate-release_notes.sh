@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-RELEASE=${GIT_TAG:-$1}
+RELEASE=${CI_COMMIT_TAG:-$1}
 
 if [ -z "${RELEASE}" ]; then
   echo "Usage:"
