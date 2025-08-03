@@ -136,9 +136,9 @@ generate_release_notes:
       - scripts/
     expire_in: 1 hour
   before_script:
-    - apk add --no-cache bash curl git
+    - apk add --no-cache bash curl git tree
     - echo "Listing files for debugging"
-    - find . -type f
+    - tree scripts
     - cat ./scripts/gitlab/generate-release_notes.sh
     - chmod +x scripts/gitlab/generate-release_notes.sh
   script:
