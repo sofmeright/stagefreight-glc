@@ -1,3 +1,5 @@
+![Latest Release](https://gitlab.prplanit.com/components/stagefreight/-/badges/release.svg) ![Latest Release Status](https://gitlab.prplanit.com/components/stagefreight/-/raw/main/assets/badge-release-status.svg) [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/T6T41IT163)
+
 # ![StageFreight](https://gitlab.prplanit.com/uploads/-/system/project/avatar/36/Screenshot_2025-08-01_214734.png?width=26) StageFreight
 
 > A reusable GitLab CI component for managing and publishing release artifacts and metadata in a consistent, automated way.  
