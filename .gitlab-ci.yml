@@ -7,9 +7,7 @@ include:
   - component: $CI_SERVER_FQDN/components/stagefreight/gl-component-release@main
     inputs:
       gitlab_domain: "https://gitlab.prplanit.com"
-      component_spec_files:
-        - "templates/gl-component-release.yml"
-        - "templates/gl-docker-release.yml"
+      component_spec_files: ["templates/gl-component-release.yml", "templates/gl-docker-release.yml"]
       readme_file: "README.md"
       badge_template: "assets/badge-release-generic.svg"
       badge_output: "assets/badge-release-status.svg"

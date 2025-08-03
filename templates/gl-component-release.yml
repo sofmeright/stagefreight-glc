@@ -9,7 +9,7 @@ spec:
       default: "assets/badge-release-status.svg"
       description: "Final badge output path"
     component_spec_files:
-      default: 
+      default:
         - "templates/gl-component-release.yml"
         - "templates/gl-docker-release.yml"
       description: "Array of component spec files (for README input info)"
