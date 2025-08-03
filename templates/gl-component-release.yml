@@ -82,65 +82,17 @@ generate_readme_component_inputs:
 
     - mkdir -p artifacts
 
-    # -----------------------------------
-    # Parse component_spec_files safely
-    # -----------------------------------
-    - |
-      echo "--- Begin component_spec_files parsing ---"
-
-      # Emulate GitLab input array parsing
-      raw_input='$[[ inputs.component_spec_files ]]'
-      echo "Raw input array string: $raw_input"
-
-      # Strip outer brackets and split on commas
-      sanitized=$(echo "$raw_input" | sed 's/^\[\(.*\)\]$/\1/' | tr -d '"')
-      IFS=',' read -ra COMPONENT_FILES <<< "$sanitized"
-
-      echo "Parsed component spec files:"
-      for file in "${COMPONENT_FILES[@]}"; do
-        echo "  -> [$file]"
-      done
-
-      echo "--- End component_spec_files parsing ---"
-
-      # -----------------------------------
-      # Merge all .spec.inputs into one YAML for processing
-      # -----------------------------------
-      : > artifacts/_inputs_raw.yaml
-
-      for file in "${COMPONENT_FILES[@]}"; do
-        if [[ -f "$file" ]]; then
-          echo "# $file" >> artifacts/_inputs_raw.yaml
-          yq '.spec.inputs' "$file" >> artifacts/_inputs_raw.yaml
-          echo "---" >> artifacts/_inputs_raw.yaml
-        else
-          echo "WARNING: Component spec file '$file' not found!" >&2
-        fi
-      done
-
-      echo "--- RAW INPUT BLOCK ---"
-      cat artifacts/_inputs_raw.yaml
-      echo "--- END RAW INPUT BLOCK ---"
-
-      # Strip trailing separator from the last file
-      sed -i '/^---$/,$d' artifacts/_inputs_raw.yaml
-
-      # Dump JSON version of last file's inputs for compatibility
-      last_file="${COMPONENT_FILES[-1]}"
-      if [[ -f "$last_file" ]]; then
-        yq -o=json '.spec.inputs' "$last_file" > artifacts/_inputs.json
-      else
-        echo "{}" > artifacts/_inputs.json
-        echo "WARNING: Could not find last component spec file: $last_file" >&2
-      fi
-
-    - echo "--- RAW INPUT BLOCK ---"
-    - cat artifacts/_inputs_raw.yaml
-    - echo "--- END RAW INPUT BLOCK ---"
-
-    # Run script to generate component-inputs syntax infos.
+    # Pass the *raw* string array to the script and let it parse/merge/process.
+    # The script will:
+    #   1) parse the array string,
+    #   2) load each YAML spec,
+    #   3) merge the inputs blocks,
+    #   4) generate the markdown table
+    #
+    # This way you keep your GitLab CI job simple and focused on orchestration.
+    #
     - chmod +x scripts/gitlab/components/generate-component_inputs_table.sh
-    - ./scripts/gitlab/components/generate-component_inputs_table.sh artifacts/_inputs_raw.yaml artifacts/component_inputs.md
+    - ./scripts/gitlab/components/generate-component_inputs_table.sh "$[[ inputs.component_spec_files ]]" artifacts/component_inputs.md
 
     - echo "--- Generated Markdown ---"
     - cat artifacts/component_inputs.md

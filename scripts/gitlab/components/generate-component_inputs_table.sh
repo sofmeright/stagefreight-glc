@@ -1,10 +1,50 @@
 #!/bin/bash
 set -euo pipefail
 
-COMPONENT_SPEC_FILE="$1"
+raw_files="$1"
 OUTPUT_MD_FILE="$2"
 
 mkdir -p "$(dirname "$OUTPUT_MD_FILE")"
+
+echo "🔍 Debug: Parsing raw input file list string..."
+echo "Raw input: $raw_files"
+
+# Strip brackets and quotes, split into array
+files=$(echo "$raw_files" | sed -e 's/^\[\(.*\)\]$/\1/' -e 's/"//g')
+IFS=',' read -r -a file_array <<< "$files"
+
+echo "Files to process:"
+for f in "${file_array[@]}"; do
+  echo " - [$f]"
+done
+
+# Create merged inputs file
+TMP_MERGED_INPUTS="/tmp/merged_inputs.yaml"
+> "$TMP_MERGED_INPUTS"
+
+last_file=""
+
+for f in "${file_array[@]}"; do
+  if [[ -f "$f" ]]; then
+    echo "# $f" >> "$TMP_MERGED_INPUTS"
+    yq '.spec.inputs' "$f" >> "$TMP_MERGED_INPUTS"
+    echo "---" >> "$TMP_MERGED_INPUTS"
+    last_file="$f"
+  else
+    echo "WARNING: File not found: $f" >&2
+  fi
+done
+
+# Remove trailing ---
+sed -i '/^---$/,$d' "$TMP_MERGED_INPUTS"
+
+echo "🔍 Debug: Merged inputs YAML content:"
+cat "$TMP_MERGED_INPUTS"
+
+# Use merged YAML as input for your existing group metadata parsing & markdown gen logic
+COMPONENT_SPEC_FILE="$TMP_MERGED_INPUTS"
+
+# (The rest of your original script below, unchanged:)
 
 TMP_INPUTS="/tmp/inputs_with_groups.yaml"
 TMP_JSON="/tmp/inputs.json"
@@ -86,7 +126,7 @@ awk '
 ' "$COMPONENT_SPEC_FILE" > "$TMP_INPUTS"
 
 echo "📦 Debug: Annotated inputs written to: $TMP_INPUTS"
-cat "$TMP_INPUTS" | sed 's/^/    /'
+sed 's/^/    /' "$TMP_INPUTS"
 
 # Step 2: Convert to JSON
 yq eval -o=json "$TMP_INPUTS" > "$TMP_JSON"
