@@ -17,6 +17,7 @@ awk '
     group_desc = ""
     current_key = ""
     in_input = 0
+    printed_group = 0
   }
 
   /^[[:space:]]*# input_section_name-/ {
@@ -34,6 +35,12 @@ awk '
   }
 
   /^[^[:space:]#][^:]*:/ {
+    if (in_input && current_key != "") {
+      # Insert group tags for the previous input block
+      print "  _input_group_name: \"" group_name "\""
+      print "  _input_group_desc: \"" group_desc "\""
+    }
+
     current_key = $1
     gsub(":", "", current_key)
     print $0
@@ -62,7 +69,6 @@ awk '
   }
 
   END {
-    # Close last input with group info
     if (in_input && current_key != "") {
       print "  _input_group_name: \"" group_name "\""
       print "  _input_group_desc: \"" group_desc "\""
