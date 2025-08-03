@@ -29,16 +29,16 @@ for f in "${file_array[@]}"; do
     COMPONENT_NAME=$(basename "$f" | sed 's/\.[^.]*$//')
     echo "### Processing component: $COMPONENT_NAME"
 
-    tmpfile=/tmp/inputs_tmp.yaml
-    yq eval -o=yaml '.spec.inputs // empty' "$f" > "$tmpfile"
+    if yq eval '.spec.inputs | type' "$f" | grep -qE '^(!!map|!!seq|map|seq)$'; then
+    COMPONENT_NAME=$(basename "$f" | sed 's/\.[^.]*$//')
+    echo "### Processing component: $COMPONENT_NAME"
 
-    if grep -qv '^null$' "$tmpfile"; then
-      echo "# --- $COMPONENT_NAME ---" >> "$TMP_MERGED_INPUTS"
-      cat "$tmpfile" >> "$TMP_MERGED_INPUTS"
-      echo "" >> "$TMP_MERGED_INPUTS"
-    else
-      echo "Warning: .spec.inputs empty or null in $f, skipping."
-    fi
+    echo "# --- $COMPONENT_NAME ---" >> "$TMP_MERGED_INPUTS"
+    yq eval -o=yaml '.spec.inputs' "$f" >> "$TMP_MERGED_INPUTS"
+    echo "" >> "$TMP_MERGED_INPUTS"
+  else
+    echo "Warning: .spec.inputs empty or null in $f, skipping."
+  fi
   else
     echo "WARNING: File not found: $f" >&2
   fi
