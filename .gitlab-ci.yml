@@ -5,8 +5,6 @@ cache:
 
 include:
   - component: $CI_SERVER_FQDN/components/stagefreight/gl-component-release@main
-    when: always
-    needs: export-dependencies
     inputs:
       gitlab_domain: "https://gitlab.prplanit.com"
       component_spec_files: "templates/gl-component-release.yml"
