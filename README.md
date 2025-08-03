@@ -127,8 +127,6 @@ Core settings used by StageFreight.
 
 <!-- END_C_INPUTS_MAP -->
 
----
-
 ## It Does Not Work? (Common Fixes)
 
 - Are you calling the component from a protected branch/tag? If yes, you may want to make CI/CD variables protected too for security reasons.
