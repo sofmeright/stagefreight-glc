@@ -85,10 +85,11 @@ generate_readme_component_inputs:
     # Dump raw input array for inspection
     - echo "component_spec_files raw input:" && echo "$[[ inputs.component_spec_files ]]"
 
-    # Convert the array string into a real Bash array
-    - IFS=$'\n' read -rd '' -a COMPONENT_FILES <<< "$(printf "%s\n" $[[ inputs.component_spec_files ]])"
-    - echo "Parsed component spec files:"
-    - printf ' - %s\n' "${COMPONENT_FILES[@]}"
+    # Use yq to convert the array to a newline-separated list and store it in a Bash array
+    - |
+      mapfile -t COMPONENT_FILES < <(yq -r '.spec.inputs.component_spec_files[]' "$CI_PROJECT_DIR/$CI_COMMIT_REF_NAME.yml")
+      echo "Parsed component spec files:"
+      for f in "${COMPONENT_FILES[@]}"; do echo " - $f"; done
 
     # Clean target file
     - : > artifacts/component_inputs.md
