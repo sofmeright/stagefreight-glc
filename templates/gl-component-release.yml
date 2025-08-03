@@ -94,13 +94,27 @@ generate_readme_component_inputs:
     - |
       START_TAG="<!-- START_C_INPUTS_MAP -->"
       END_TAG="<!-- END_C_INPUTS_MAP -->"
-      content=$(sed 's/\\/\\\\/g; s/`/\\`/g; s/"/\\"/g' artifacts/component_inputs.md | awk '{ print "echo \"" $0 "\"" }')
 
-      awk -v start="$START_TAG" -v end="$END_TAG" -v content="$content" '
-        BEGIN {inblock=0}
-        $0 ~ start { print; system(content); inblock=1; next }
-        $0 ~ end { inblock=0 }
-        !inblock { print }
+      awk -v start="$START_TAG" -v end="$END_TAG" -v file="artifacts/component_inputs.md" '
+        BEGIN {
+          inblock = 0
+          while ((getline line < file) > 0) {
+            lines[++n] = line
+          }
+          close(file)
+        }
+        {
+          if ($0 ~ start) {
+            print
+            for (i = 1; i <= n; i++) print lines[i]
+            inblock = 1
+            next
+          }
+          if ($0 ~ end) {
+            inblock = 0
+          }
+          if (!inblock) print
+        }
       ' "$README_FILE" > updated_readme.md
 
     # Upload the updated README
