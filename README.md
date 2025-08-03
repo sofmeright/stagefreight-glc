@@ -16,8 +16,6 @@ Progress:
 - ✅ Components - Basic features working as expected! Will implement more features in the future.
 - 🚫 Binary (deb/exe/etc.) release management ~ We actually have a project this is done in we forgot about so there is code to be recycled. But we will need time to implement.
 
-When will it be done?: I wish I knew. I wanted these three to have feature parity for what we have done in pipelines before I went to sleep but looks like a little more time.
-
 ---
 
 ## Overview
