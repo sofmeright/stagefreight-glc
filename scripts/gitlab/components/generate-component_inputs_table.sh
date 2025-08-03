@@ -28,9 +28,9 @@ for f in "${file_array[@]}"; do
   if [[ -f "$f" ]]; then
     COMPONENT_NAME=$(basename "$f" | sed 's/\.[^.]*$//')
     echo "### Processing component: $COMPONENT_NAME"
-
-    # Extract just the .spec.inputs block — safely, even if it spans YAML docs
-    yq eval '.spec.inputs' "$f" > /tmp/inputs_tmp.yam
+    
+    # Extract and trim inputs section before any document separator
+    yq '.spec.inputs' "$f" | sed '/^---$/q' > /tmp/inputs_tmp.yaml
 
     # Append title and trimmed inputs to merged output
     echo "# --- $COMPONENT_NAME ---" >> "$TMP_MERGED_INPUTS"
