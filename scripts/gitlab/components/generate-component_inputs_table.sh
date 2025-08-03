@@ -9,29 +9,55 @@ mkdir -p "$(dirname "$OUTPUT_MD_FILE")"
 TMP_INPUTS="/tmp/inputs_with_groups_$(basename "$COMPONENT_SPEC_FILE" | tr '/' '_' | sed 's/[^a-zA-Z0-9]/_/g').yaml"
 TMP_JSON="/tmp/inputs_$(basename "$COMPONENT_SPEC_FILE" | tr '/' '_' | sed 's/[^a-zA-Z0-9]/_/g').json"
 
-echo "🔍 Debug: Parsing group metadata and inputs..."
+echo "🔍 Debug: Parsing group metadata and inputs from original file..."
 
+# Process the original file, but only output content within the spec.inputs section
 awk '
   BEGIN {
+    in_inputs_section = 0
     current_key = ""
     in_input = 0
     group_name = "Ungrouped"
     group_desc = ""
     next_group_name = ""
     next_group_desc = ""
-    pending_group_change = 0
+    indent_level = 0
   }
 
+  # Detect when we enter the spec.inputs section
+  /^[[:space:]]*inputs:[[:space:]]*$/ {
+    if (in_spec_section) {
+      in_inputs_section = 1
+      next
+    }
+  }
+  
+  # Detect spec section
+  /^[[:space:]]*spec:[[:space:]]*$/ {
+    in_spec_section = 1
+    next
+  }
+
+  # If we are not in inputs section, check for section markers
+  !in_inputs_section {
+    # Reset if we hit another top-level section after spec
+    if (/^[a-zA-Z]/ && in_spec_section) {
+      in_spec_section = 0
+    }
+    next
+  }
+
+  # Now we are in the inputs section - process normally
+  
   # Capture group name from comment
   /^[[:space:]]*# input_section_name-/ {
     sub(/^.*# input_section_name-/, "", $0)
     gsub(/^[ \t]+|[ \t]+$/, "", $0)
     next_group_name = $0
-    pending_group_change = 1
     next
   }
 
-  # Capture group description from comment
+  # Capture group description from comment  
   /^[[:space:]]*# input_section_desc-/ {
     sub(/^.*# input_section_desc-/, "", $0)
     gsub(/^[ \t]+|[ \t]+$/, "", $0)
@@ -44,54 +70,67 @@ awk '
     next
   }
 
-  # Main input key (top level, not indented)
-  /^[^[:space:]#][^:]*:/ {
-    # If we have a pending group change, apply it now
-    if (pending_group_change && next_group_name != "") {
+  # Check if we are leaving the inputs section (next major section at same level as inputs)
+  /^[[:space:]]*[a-zA-Z][^:]*:[[:space:]]*$/ && in_inputs_section {
+    # This might be the end of inputs section
+    # Close any pending input
+    if (in_input && current_key != "") {
+      print "  _input_group_name: \"" group_name "\""
+      print "  _input_group_desc: \"" group_desc "\""
+    }
+    in_inputs_section = 0
+    next
+  }
+
+  # Input key (should be indented within inputs section)
+  /^[[:space:]]+[^[:space:]#][^:]*:[[:space:]]*/ {
+    # Apply pending group change
+    if (next_group_name != "") {
       group_name = next_group_name
       next_group_name = ""
-      pending_group_change = 0
     }
     if (next_group_desc != "") {
-      group_desc = next_group_desc
+      group_desc = next_group_desc  
       next_group_desc = ""
     }
 
-    # Close previous input if we were in one
+    # Close previous input
     if (in_input && current_key != "") {
       print "  _input_group_name: \"" group_name "\""
       print "  _input_group_desc: \"" group_desc "\""
     }
 
-    # Start new input
-    current_key = $1
-    gsub(":", "", current_key)
-    print $0
+    # Start new input - remove the leading spaces to make it top-level
+    current_key = $0
+    sub(/^[[:space:]]+/, "", current_key)
+    gsub(/:.*$/, "", current_key)
+    print current_key ":"
     in_input = 1
     next
   }
 
-  # Indented properties (description, default, type, etc.)
-  /^[[:space:]]+[a-zA-Z0-9_-]+:/ {
+  # Properties of inputs (description, default, type, etc.)
+  /^[[:space:]]+[[:space:]]+[a-zA-Z0-9_-]+:/ {
+    # Remove one level of indentation and print
+    sub(/^[[:space:]]+/, "", $0)
     print $0
     next
   }
 
-  # Empty lines - close current input if we were in one
+  # Array items and other content
+  /^[[:space:]]+[[:space:]]+/ {
+    # Remove one level of indentation and print  
+    sub(/^[[:space:]]+/, "", $0)
+    print $0
+    next
+  }
+
+  # Empty lines
   /^[[:space:]]*$/ {
-    if (in_input && current_key != "") {
-      print "  _input_group_name: \"" group_name "\""
-      print "  _input_group_desc: \"" group_desc "\""
-      in_input = 0
-      current_key = ""
+    if (in_input) {
+      print ""
     }
-    print ""
     next
-  }
-
-  # Everything else (array items, continuation lines, etc.)
-  {
-    print $0
   }
 
   # Handle final input at end of file
