@@ -2,7 +2,6 @@ spec:
   inputs:
     # input_section_name- Docker Hub Config
     # input_section_desc- Settings Needed to Publish on the Docker Hub.
-    docker_urls:
     docker_hub_user:
       description: "Docker Hub username for image publishing"
     docker_hub_pass:
