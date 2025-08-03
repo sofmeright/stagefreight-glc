@@ -78,33 +78,52 @@ generate_readme_component_inputs:
     - echo "API URL- $CI_API_V4_URL"
     - echo "Project ID- $CI_PROJECT_ID"
     - echo "Current tag- $CI_COMMIT_TAG"
-    - |
-      mkdir -p artifacts
-      echo "Inherited artifacts from prior job/step[s]."
-      tree artifacts assets scripts templates
+
+    - mkdir -p artifacts
+
+    # Extract inputs YAML block
     - yq '.spec.inputs' "$COMPONENT_SPEC_FILES" > artifacts/_inputs_raw.yaml
+    - yq -o=json '.spec.inputs' "$COMPONENT_SPEC_FILES" > artifacts/_inputs.json
     - sed -i '/^---$/,$d' artifacts/_inputs_raw.yaml
-    - chmod +x scripts/gitlab/components/generate-component_inputs_table.sh
-    - ./scripts/gitlab/components/generate-component_inputs_table.sh artifacts/_inputs_raw.yaml "artifacts/component_inputs.md"
-    - >
-      awk -v start="<!-- START_C_INPUTS_MAP -->" -v end="<!-- END_C_INPUTS_MAP -->" -v content="$(sed 's/\\/\\\\/g; s/"/\\"/g' artifacts/component_inputs.md | awk '{ print "echo \"" $0 "\"" }')" '
+
+    - echo "--- RAW INPUT BLOCK ---"
+    - cat artifacts/_inputs_raw.yaml
+    - echo "--- END RAW INPUT BLOCK ---"
+
+    # Run script to generate component-inputs syntax infos.
+    - chmod +x scripts/components/generate-component_inputs_table.sh
+    - ./scripts/components/generate-component_inputs_table.sh artifacts/_inputs_raw.yaml artifacts/component_inputs.md
+
+    - echo "--- Generated Markdown ---"
+    - cat artifacts/component_inputs.md
+    - echo "--- End of Markdown ---"
+
+    # Inject into README between custom tags
+    - |
+      START_TAG="<!-- START_C_INPUTS_MAP -->"
+      END_TAG="<!-- END_C_INPUTS_MAP -->"
+      content=$(sed 's/\\/\\\\/g; s/"/\\"/g' artifacts/component_inputs.md | awk '{ print "echo \"" $0 "\"" }')
+
+      awk -v start="$START_TAG" -v end="$END_TAG" -v content="$content" '
         BEGIN {inblock=0}
         $0 ~ start { print; system(content); inblock=1; next }
         $0 ~ end { inblock=0 }
         !inblock { print }
-      ' "$README_FILE" > artifacts/updated_readme.md
-    - CONTENT_BASE64=$(base64 -w 0 artifacts/updated_readme.md)
-    - ENCODED_FILE_PATH=$(printf '%s' "$README_FILE" | jq -s -R -r @uri)
-    - >
-      curl --request PUT --header "PRIVATE-TOKEN: $GITLAB_TOKEN"
-        --header "Content-Type: application/json"
-        --data "{
-          \"branch\": \"$GITLAB_BRANCH\",
-          \"content\": \"$CONTENT_BASE64\",
-          \"commit_message\": \"Update component input map for $CI_COMMIT_TAG\",
-          \"encoding\": \"base64\"
-        }"
-        "$CI_API_V4_URL/projects/$CI_PROJECT_ID/repository/files/$ENCODED_FILE_PATH"
+      ' "$README_FILE" > updated_readme.md
+
+    # Upload the updated README
+    - |
+      CONTENT_BASE64=$(base64 -w 0 updated_readme.md)
+      ENCODED_FILE_PATH=$(printf '%s' "$README_FILE" | jq -s -R -r @uri)
+      curl --request PUT --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+          --header "Content-Type: application/json" \
+          --data "{
+            \"branch\": \"$GITLAB_BRANCH\",
+            \"content\": \"$CONTENT_BASE64\",
+            \"commit_message\": \"Update component input map for $CI_COMMIT_TAG\",
+            \"encoding\": \"base64\"
+          }" \
+          "$CI_API_V4_URL/projects/$CI_PROJECT_ID/repository/files/$ENCODED_FILE_PATH"
 
 generate_release_notes:
   artifacts:
