@@ -1,3 +1,4 @@
+
 #!/bin/bash
 set -euo pipefail
 
@@ -77,7 +78,125 @@ def parse_file_with_groups(filename):
             continue
             
         # Look for input keys (indented under inputs)
-        match = re.match(r'^\s+([a-zA-Z0-9_-]+):\s*(.*)$', line)
+        match = re.match(r'^\s+([a-zA-Z0-9_-]+):\s*(.*)
+            
+            # Handle inline value if present
+            inline_value = match.group(2)
+            if inline_value and inline_value != '':
+                if inline_value.startswith('[') or inline_value.startswith('{'):
+                    try:
+                        input_def = yaml.safe_load(f'{key}: {inline_value}')[key]
+                    except:
+                        input_def['value'] = inline_value
+                else:
+                    input_def['value'] = inline_value.strip('\"\'')
+            
+            # Parse multi-line properties
+            while i < len(lines):
+                line = lines[i].rstrip()
+                
+                # Check if this is a property of the current input (more indented)
+                if re.match(r'^\s+\s+([a-zA-Z0-9_-]+):\s*(.*)$', line):
+                    prop_match = re.match(r'^\s+\s+([a-zA-Z0-9_-]+):\s*(.*)$', line)
+                    prop_key = prop_match.group(1)
+                    prop_value = prop_match.group(2)
+                    
+                    if prop_value.startswith('[') or prop_value.startswith('{'):
+                        try:
+                            input_def[prop_key] = yaml.safe_load(prop_value)
+                        except:
+                            input_def[prop_key] = prop_value
+                    elif prop_value.startswith('\"') or prop_value.startswith(\"'\"):
+                        input_def[prop_key] = prop_value.strip('\"\'')
+                    elif prop_value == '':
+                        # Multi-line or array, continue reading
+                        input_def[prop_key] = []
+                        i += 1
+                        while i < len(lines):
+                            line = lines[i].rstrip()
+                            if re.match(r'^\s+\s+\s+- ', line):
+                                item = line.strip('- ').strip('\"\'')
+                                input_def[prop_key].append(item)
+                                i += 1
+                            else:
+                                i -= 1  # Back up one line
+                                break
+                    else:
+                        try:
+                            input_def[prop_key] = yaml.safe_load(prop_value)
+                        except:
+                            input_def[prop_key] = prop_value
+                    i += 1
+                elif re.match(r'^\s+\s+\s+', line):
+                    # Array item or continuation, handle specially
+                    i += 1
+                else:
+                    # End of this input's properties
+                    break
+            
+            # Add group metadata
+            input_def['_input_group_name'] = current_group
+            input_def['_input_group_desc'] = current_group_desc
+            inputs_data[key] = input_def
+            
+            # Don't increment i here - let the main loop handle it
+            continue
+        
+        i += 1
+    
+    return inputs_data
+
+try:
+    result = parse_file_with_groups('$COMPONENT_SPEC_FILE')
+    with open('$TMP_JSON', 'w') as f:
+        json.dump(result, f, indent=2)
+    print(f'📦 Debug: Parsed {len(result)} inputs successfully')
+    for key, value in result.items():
+        group = value.get('_input_group_name', 'Ungrouped')
+        print(f'  {key} -> {group}')
+except Exception as e:
+    print(f'❌ Error parsing file: {e}')
+    sys.exit(1)
+"
+
+if [ $? -ne 0 ]; then
+    echo "❌ Failed to parse inputs"
+    exit 1
+fi
+
+echo "📦 Debug: JSON output written to: $TMP_JSON"
+
+# Step 2: Generate grouped Markdown using jq
+jq -r '
+  to_entries
+  | map({
+      key: .key,
+      group: (.value._input_group_name // "Ungrouped"),
+      group_desc: (.value._input_group_desc // ""),
+      required: (
+        (.value | type == "object") and 
+        ((.value.default // null) == null or (.value.default // null) == "")
+      ),
+      default: (.value.default // ""),
+      description: (.value.description // "")
+    })
+  | group_by(.group)
+  | map(
+      "### " + (.[0].group // "Ungrouped") + "\n" +
+      (if (.[0].group_desc // "") != "" then (.[0].group_desc) + "\n" else "" end) +
+      "| Name | Required | Default | Description |\n" +
+      "|------|----------|---------|-------------|\n" +
+      (
+        map("| \(.key) | \(.required) | \(.default | @json) | \(.description) |") | join("\n")
+      ) + "\n"
+    )
+  | join("\n")
+' "$TMP_JSON" > "$OUTPUT_MD_FILE"
+
+# Step 3: Emoji replacements
+sed -i 's/| true |/| ✅ |/g; s/| false |/| 🚫 |/g' "$OUTPUT_MD_FILE"
+
+echo "✅ Markdown output generated at: $OUTPUT_MD_FILE", line)
         if match:
             key = match.group(1)
             
