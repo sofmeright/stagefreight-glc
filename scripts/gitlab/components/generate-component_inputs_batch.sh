@@ -24,19 +24,26 @@ done
 for f in "${file_array[@]}"; do
   name=$(basename "$f")
   name="${name%.*}"  # Strip extension
-  
-  echo "⚙️  Generating Markdown for $f directly"
-  
+
+  # Extract cleaned .spec.inputs block
+  tmp_input="/tmp/${name}_inputs.yaml"
+  echo "📦 Extracting .spec.inputs from $f -> $tmp_input"
+  yq '.spec.inputs' "$f" > "$tmp_input"
+  sed -i '/^---$/,$d' "$tmp_input"
+
   tmp_md="/tmp/${name}_inputs.md"
-  
-  # Process the original file directly (don't extract .spec.inputs first)
-  ./scripts/gitlab/components/generate-component_inputs_table.sh "$f" "$tmp_md"
-  
+  echo "⚙️  Generating Markdown for $f -> $tmp_md"
+
+  ./scripts/gitlab/components/generate-component_inputs_table.sh "$tmp_input" "$tmp_md"
+
   echo "📌 Appending to output file with header..."
   {
     echo "## \`$name\`"
+    echo ""
     cat "$tmp_md"
+    echo ""
     echo "---"
+    echo ""
   } >> "$OUTPUT_MD_FILE"
 done
 
