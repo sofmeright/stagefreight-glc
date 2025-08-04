@@ -200,7 +200,7 @@ build-image:
 
 generate_release_notes:
   stage: release
-  image: alpine:3.22.1
+  image: docker.jcr.pcfae.com/prplanit/stagefreight:latest
   needs: [export_dependencies]
   only: [tags]
   artifacts:
@@ -221,7 +221,7 @@ generate_release_notes:
 
 create-release:
   stage: release
-  image: alpine:3.22.1
+  image: docker.jcr.pcfae.com/prplanit/stagefreight:latest
   only: [tags]
   needs: [generate_release_notes]
   before_script:
@@ -254,7 +254,7 @@ update-release-badge:
       - assets/badge-release-generic.svg
       - scripts/
   stage: release
-  image: alpine:3.22.1
+  image: docker.jcr.pcfae.com/prplanit/stagefreight:latest
   only: [tags]
   needs: [create-release, generate_release_notes]
   script: |
