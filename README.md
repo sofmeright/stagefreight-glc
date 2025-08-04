@@ -47,19 +47,30 @@ Include StageFreight as a component in your `.gitlab-ci.yml`:
 ## `gl-component-release`
 
 ```yaml
+cache:
+  key: "${CI_COMMIT_REF_SLUG}-${CI_PIPELINE_ID}"
+  paths:
+    - .cache/
+
 include:
   - component: $CI_SERVER_FQDN/components/stagefreight/gl-component-release@main
     inputs:
       gitlab_domain: "https://gitlab.prplanit.com"
-      component_spec_file: "templates/run.yml"
+      component_spec_file:
+        - "templates/gl-component-release.yml"
+        - "templates/gl-docker-release.yml"
       readme_file: "README.md"
-      output_md_file: "artifacts/component_inputs.md"
       badge_template: "assets/badge-release-generic.svg"
       badge_output: "assets/badge-release-status.svg"
       branch_name: "main"
+  - project: 'components/stagefreight'
+    file: '/export-dependencies.yml'
+    ref: main
 
 stages:
+  - build
   - release
+
 ```
 
 ## `gl-docker-release`
