@@ -166,7 +166,7 @@ Inputs that configure GitLab Job behavior
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
 | gitlab_branch | 🚫 | "main" | Target Git branch for commits. |
-| gitlab_domain | 🚫 | "https://gitlab.prplanit.com" | Base GitLab domain (used for badge & catalog links) |
+| gitlab_domain | ✅ | "" | Base GitLab domain (used for badge & catalog links) |
 | gitlab_token | ✅ | "" | Token for authenticating GitLab API calls. |
 
 ### StageFreight Settings
