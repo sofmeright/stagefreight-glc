@@ -20,7 +20,6 @@ spec:
       default: 'main'
       description: 'Target Git branch for commits.'
     gitlab_domain:
-      default: "https://gitlab.prplanit.com"
       description: "Base GitLab domain (used for badge & catalog links)"
     gitlab_token:
       description: 'Token for authenticating GitLab API calls.'
