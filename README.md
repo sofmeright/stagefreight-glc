@@ -165,7 +165,6 @@ variables:
 Inputs that configure GitLab Job behavior
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
-| branch_name | 🚫 | "main" | Branch to push badge/README changes to |
 | gitlab_branch | 🚫 | "main" | Target Git branch for commits. |
 | gitlab_domain | 🚫 | "https://gitlab.prplanit.com" | Base GitLab domain (used for badge & catalog links) |
 | gitlab_job | 🚫 | "run-ansible" | The intended name of the CI job spawned by this component. |
@@ -178,7 +177,7 @@ Core settings used by StageFreight.
 |------|----------|---------|-------------|
 | badge_template | 🚫 | "assets/badge-release-generic.svg" | SVG template for badge generation |
 | badge_output | 🚫 | "assets/badge-release-status.svg" | Final badge output path |
-| component_spec_files | 🚫 | ["templates/gl-component-release.yml","templates/gl-docker-release.yml"] | Array of component spec files (for README input info) |
+| component_spec_files | ✅ | "" | Array of component spec files (for README input info) |
 | readme_file | 🚫 | "README.md" | README file to inject Markdown input map into |
 
 ---
