@@ -16,9 +16,6 @@ spec:
       description: "README file to inject Markdown input map into"
     # input_section_name- GitLab CI/CD Inputs
     # input_section_desc- Inputs that configure GitLab Job behavior
-    branch_name:
-      default: "main"
-      description: "Branch to push badge/README changes to"
     gitlab_branch:
       default: 'main'
       description: 'Target Git branch for commits.'
@@ -218,7 +215,7 @@ update_release_pipeline_status_badge:
     curl --request PUT --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
       --header "Content-Type: application/json" \
       --data "{
-        \"branch\": \"$[[ inputs.branch_name ]]\",
+        \"branch\": \"$GITLAB_BRANCH\",
         \"content\": \"$CONTENT_BASE64\",
         \"commit_message\": \"Update release badge for $CI_COMMIT_TAG\",
         \"encoding\": \"base64\"
