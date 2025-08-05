@@ -167,9 +167,7 @@ Inputs that configure GitLab Job behavior
 |------|----------|---------|-------------|
 | gitlab_branch | 🚫 | "main" | Target Git branch for commits. |
 | gitlab_domain | 🚫 | "https://gitlab.prplanit.com" | Base GitLab domain (used for badge & catalog links) |
-| gitlab_job | 🚫 | "run-ansible" | The intended name of the CI job spawned by this component. |
-| gitlab_stage | 🚫 | "ansible" | The intended name of the CI stage this job will run in. |
-| gitlab_token | 🚫 | "" | Token for authenticating GitLab API calls. |
+| gitlab_token | ✅ | "" | Token for authenticating GitLab API calls. |
 
 ### StageFreight Settings
 Core settings used by StageFreight.
