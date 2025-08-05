@@ -6,6 +6,7 @@ cache:
 include:
   - component: $CI_SERVER_FQDN/components/stagefreight/gl-component-release@main
     inputs:
+      gitlab_branch: "main"
       gitlab_domain: "https://gitlab.prplanit.com"
       component_spec_files:
         - "templates/gl-component-release.yml"
@@ -13,7 +14,6 @@ include:
       readme_file: "README.md"
       badge_template: "assets/badge-release-generic.svg"
       badge_output: "assets/badge-release-status.svg"
-      branch_name: "main"
   - project: 'components/stagefreight'
     file: '/export-dependencies.yml'
     ref: main
