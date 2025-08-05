@@ -170,7 +170,7 @@ Inputs that configure GitLab Job behavior
 | gitlab_domain | 🚫 | "https://gitlab.prplanit.com" | Base GitLab domain (used for badge & catalog links) |
 | gitlab_job | 🚫 | "run-ansible" | The intended name of the CI job spawned by this component. |
 | gitlab_stage | 🚫 | "ansible" | The intended name of the CI stage this job will run in. |
-| gitlab_token | ✅ | "" | Token for authenticating GitLab API calls. |
+| gitlab_token | 🚫 | "" | Token for authenticating GitLab API calls. |
 
 ### StageFreight Settings
 Core settings used by StageFreight.
@@ -187,31 +187,31 @@ Core settings used by StageFreight.
 Note that you can configure more than 3 by overriding
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
-| freight_docker_url_1 | ✅ | "" | The registry endpoint to push the Docker image to (i.e. docker.io) |
-| freight_docker_user_1 | ✅ | "" | The username used to authenticate with the registry. |
-| freight_docker_pass_1 | ✅ | "" | The password or access token for authentication. |
-| freight_docker_path_1 | ✅ | "" | The full image path to push (i.e. prplanit/stagefreight) |
-| freight_docker_registry_1 | ✅ | "" | A friendly name used in logs to identify this registry. |
+| freight_docker_url_1 | 🚫 | "" | The registry endpoint to push the Docker image to (i.e. docker.io) |
+| freight_docker_user_1 | 🚫 | "" | The username used to authenticate with the registry. |
+| freight_docker_pass_1 | 🚫 | "" | The password or access token for authentication. |
+| freight_docker_path_1 | 🚫 | "" | The full image path to push (i.e. prplanit/stagefreight) |
+| freight_docker_registry_1 | 🚫 | "" | A friendly name used in logs to identify this registry. |
 
 ### Docker Registry 2 Config
 Below this section are examples to configure more registries
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
-| freight_docker_url_2 | ✅ | "" | The registry endpoint to push the Docker image to (i.e. docker.io) |
-| freight_docker_user_2 | ✅ | "" | The username used to authenticate with the registry. |
-| freight_docker_pass_2 | ✅ | "" | The password or access token for authentication. |
-| freight_docker_path_2 | ✅ | "" | The full image path to push (i.e. prplanit/stagefreight) |
-| freight_docker_registry_2 | ✅ | "" | A friendly name used in logs to identify this registry. |
+| freight_docker_url_2 | 🚫 | "" | The registry endpoint to push the Docker image to (i.e. docker.io) |
+| freight_docker_user_2 | 🚫 | "" | The username used to authenticate with the registry. |
+| freight_docker_pass_2 | 🚫 | "" | The password or access token for authentication. |
+| freight_docker_path_2 | 🚫 | "" | The full image path to push (i.e. prplanit/stagefreight) |
+| freight_docker_registry_2 | 🚫 | "" | A friendly name used in logs to identify this registry. |
 
 ### Docker Registry 3 Config
 Below this section are examples to configure more registries
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
-| freight_docker_url_3 | ✅ | "" | The registry endpoint to push the Docker image to (i.e. docker.io) |
-| freight_docker_user_3 | ✅ | "" | The username used to authenticate with the registry. |
-| freight_docker_pass_3 | ✅ | "" | The password or access token for authentication. |
-| freight_docker_path_3 | ✅ | "" | The full image path to push (i.e. prplanit/stagefreight) |
-| freight_docker_registry_3 | ✅ | "" | A friendly name used in logs to identify this registry. |
+| freight_docker_url_3 | 🚫 | "" | The registry endpoint to push the Docker image to (i.e. docker.io) |
+| freight_docker_user_3 | 🚫 | "" | The username used to authenticate with the registry. |
+| freight_docker_pass_3 | 🚫 | "" | The password or access token for authentication. |
+| freight_docker_path_3 | 🚫 | "" | The full image path to push (i.e. prplanit/stagefreight) |
+| freight_docker_registry_3 | 🚫 | "" | A friendly name used in logs to identify this registry. |
 
 ### GitLab Instance Config
 These are necessary for upload tasks etc
@@ -224,7 +224,7 @@ These are necessary for upload tasks etc
 Configures embedding of the Docker Hub image into the release page
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
-| docker_release_path | ✅ | "" | Path/Name of the DockerHub Image to embed on the release page. |
+| docker_release_path | 🚫 | "" | Path/Name of the DockerHub Image to embed on the release page. |
 
 ### StageFreight Settings
 Core settings used by StageFreight
