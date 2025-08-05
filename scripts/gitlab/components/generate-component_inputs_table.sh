@@ -94,6 +94,7 @@ def parse_file_with_groups(filename):
             # Parse the input definition
             input_def = {}
             inline_value = match.group(2)
+            has_default = False  # Track if default was explicitly specified
             
             # Handle inline value if present
             if inline_value and inline_value.strip():
@@ -101,10 +102,13 @@ def parse_file_with_groups(filename):
                     try:
                         parsed = yaml.safe_load(key + ": " + inline_value)
                         input_def = parsed[key] if isinstance(parsed[key], dict) else {"default": parsed[key]}
+                        has_default = True
                     except:
                         input_def = {"default": inline_value.strip()}
+                        has_default = True
                 else:
                     input_def = {"default": inline_value.strip().strip('"').strip("'")}
+                    has_default = True
             
             # Move to next line to parse properties
             i += 1
@@ -126,6 +130,10 @@ def parse_file_with_groups(filename):
                     prop_match = re.match(r"^\s+([a-zA-Z0-9_-]+):\s*(.*)$", prop_line)
                     prop_key = prop_match.group(1)
                     prop_value = prop_match.group(2).strip()
+                    
+                    # Track if we found a default property
+                    if prop_key == "default":
+                        has_default = True
                     
                     if not prop_value:
                         # Multi-line value or array
@@ -164,9 +172,10 @@ def parse_file_with_groups(filename):
                     # End of this input properties
                     break
             
-            # Add group metadata
+            # Add group metadata and required flag
             input_def["_input_group_name"] = current_group
             input_def["_input_group_desc"] = current_group_desc
+            input_def["_has_default"] = has_default
             inputs_data[key] = input_def
             
             # Continue with the outer loop (do not increment i again)
@@ -185,7 +194,8 @@ if __name__ == "__main__":
         for key, value in result.items():
             group = value.get("_input_group_name", "Ungrouped")
             desc = value.get("description", "No description")[:50]
-            print(f"  {key} -> {group} | {desc}...")
+            required = "Required" if not value.get("_has_default", False) else "Optional"
+            print(f"  {key} -> {group} | {required} | {desc}...")
     except Exception as e:
         print(f"❌ Error parsing file: {e}")
         import traceback
@@ -210,10 +220,7 @@ jq -r '
       key: .key,
       group: (.value._input_group_name // "Ungrouped"),
       group_desc: (.value._input_group_desc // ""),
-      required: (
-        (.value | type == "object") and 
-        ((.value.default // null) == null or (.value.default // null) == "")
-      ),
+      required: ((.value._has_default // false) == false),
       default: (.value.default // ""),
       description: (.value.description // "")
     })
