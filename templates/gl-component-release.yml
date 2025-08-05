@@ -22,14 +22,7 @@ spec:
     gitlab_domain:
       default: "https://gitlab.prplanit.com"
       description: "Base GitLab domain (used for badge & catalog links)"
-    gitlab_job:
-      default: run-ansible
-      description: 'The intended name of the CI job spawned by this component.'
-    gitlab_stage:
-      default: ansible
-      description: 'The intended name of the CI stage this job will run in.'
     gitlab_token:
-      default: ''
       description: 'Token for authenticating GitLab API calls.'
 
 ---
