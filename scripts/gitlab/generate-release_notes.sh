@@ -86,6 +86,7 @@ $FIXES
 [ -n "$BREAKS" ] && NOTABLE_CHANGES="${NOTABLE_CHANGES}### Breaking changes
 $BREAKS
 
+"
 NOTABLE_CHANGES=$(git tag -l --format='%(contents)' "$RELEASE" | sed '/-----BEGIN PGP SIGNATURE-----/,//d' | tail -n +6)
 CHANGELOG=$(git log --no-merges --pretty=format:'- [%h] %s (%aN)' "${PREV_RELEASE}..${RELEASE}")
 
