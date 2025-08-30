@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+# scripts/release-notes.sh
 
 RELEASE=${CI_COMMIT_TAG:-$1}
 
@@ -23,29 +24,46 @@ CHANGELOG=$(git log --no-merges --pretty=format:'- [%h] %s (%aN)' "${PREV_RELEAS
 PROJECT_NAME="${CI_PROJECT_NAME:-$(basename "$(git rev-parse --show-toplevel 2>/dev/null || echo .)")}"
 PROJECT_URL="${CI_PROJECT_URL:-$(git config --get remote.origin.url 2>/dev/null | sed 's/\.git$//')}"
 
+# Optional status hints (set these in CI before calling the script if you want green ticks)
+# BUILT_BINARIES=true
+# BUILT_COMPONENTS=true
+# BUILT_IMAGES=true
+# BUILT_PACKAGES=true
+# BUILT_HELM=true
+# BUILT_SBOM=true
+
+yn() { [ "$1" = "true" ] && printf "✅ " || printf ""; }
+
 cat <<EOF
-# AntParade GitOps 🐜 - ${PROJECT_NAME}:${RELEASE}
+# AntParade GitOps 🐜 — ${PROJECT_NAME}:${RELEASE}
 
 ${NOTABLE_CHANGES}
 
-# Image Availability
+# Images & Artifacts Availability
 
-If container images were built and pushed for this release, the registry links are listed in the **Assets** section of this Release (above).  
-Links are added automatically for any configured registries (Docker Hub, Quay, JFrog, GHCR, GitLab Container Registry, or generic OCI).
+If **container images**, **binaries**, or other **artifacts** were produced for this release, you’ll find them in the **Assets** section of this Release (above).  
+Links are added automatically for any configured registries (Docker Hub, Quay, JFrog, GHCR, GitLab Container Registry, or a generic OCI endpoint), as well as any uploaded files.
+
+Typical assets you may see:
+- $(yn "${BUILT_IMAGES:-}")Container images (registry links)
+- $(yn "${BUILT_PACKAGES:-}")OS packages (\`.deb\`, \`.rpm\`, \`.apk\`, \`.msi\`)
+- $(yn "${BUILT_BINARIES:-}")CLI binaries / archives (e.g., \`.tar.gz\`, \`.zip\`, \`.exe\`)
+- $(yn "${BUILT_COMPONENTS:-}")GitLab CI/CD components (published to Catalog)
+- $(yn "${BUILT_HELM:-}")Helm charts / Kubernetes manifests
+- $(yn "${BUILT_SBOM:-}")SBOMs / attestations (e.g., SLSA provenance)
+
+> Note: We intentionally keep release notes clean and defer to the **Assets** panel for direct download links.
 
 ## Installation
 
-For installation and usage instructions, please refer to the [README](${PROJECT_URL}/-/blob/${RELEASE}/README.md)
+For installation and usage instructions, see the [README](${PROJECT_URL}/-/blob/${RELEASE}/README.md)
 
 ## Contributing
 
-If you find this image useful, you can help:
+If you find this useful, you can help:
 
 - Submit a Merge Request with new features or fixes
 - Report bugs or issues on [Issues](${PROJECT_URL}/-/issues)
-- Donate to support my operating costs:
-
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/T6T41IT163)
 
 ## Changelog
 
