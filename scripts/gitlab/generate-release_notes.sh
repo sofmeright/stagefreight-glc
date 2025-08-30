@@ -17,6 +17,14 @@ fi
 PREV_RELEASE=$(git describe --tags --abbrev=0 "${RELEASE}^" 2>/dev/null) || \
 PREV_RELEASE=$(git rev-list --max-parents=0 "${RELEASE}^")
 
+# Get the tag message (annotation) if this is an annotated tag
+# (GitLab UI creates an annotated tag when you fill "Set tag message")
+TAG_MESSAGE="$(git for-each-ref "refs/tags/${RELEASE}" --format='%(contents)' \
+  | sed -e '/^-----BEGIN PGP SIGNATURE-----/,$d' -e '1{/^[[:space:]]*$/d;}')"
+
+# (optional) fallback to commit message if tag is lightweight/no message
+# [ "${TAG_MESSAGE}" ] || TAG_MESSAGE="$(git show -s --format=%B "${RELEASE}")"
+
 NOTABLE_CHANGES=$(git tag -l --format='%(contents)' "$RELEASE" | sed '/-----BEGIN PGP SIGNATURE-----/,//d' | tail -n +6)
 CHANGELOG=$(git log --no-merges --pretty=format:'- [%h] %s (%aN)' "${PREV_RELEASE}..${RELEASE}")
 
@@ -37,6 +45,10 @@ yn() { [ "$1" = "true" ] && printf "✅ " || printf ""; }
 cat <<EOF
 # AntParade GitOps 🐜 — ${PROJECT_NAME}:${RELEASE}
 
+# Release Highlights
+${TAG_MESSAGE:-}
+
+# Noteable Changes
 ${NOTABLE_CHANGES}
 
 # Images & Artifacts Availability
