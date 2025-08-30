@@ -43,6 +43,8 @@ If you find this image useful, you can help:
 
 - Submit a Merge Request with new features or fixes
 - Report bugs or issues on [Issues](${PROJECT_URL}/-/issues)
+- Donate to support my operating costs:
+
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/T6T41IT163)
 
 ## Changelog
