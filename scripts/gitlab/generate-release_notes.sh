@@ -52,31 +52,23 @@ strip_bullet() { sed -E 's/^-[[:space:]]*//'; }
 # Turn non-empty lines into "- ..." bullets (keeps one line per item)
 format_bullets() { awk 'NF{print "- " $0}'; }
 
-FEATS="$(
-  grab "$FEATURE_GREP" \
-  | strip_bullet \
-  | sed -E 's/^(\[[^]]+\][[:space:]]*)*(feat(ure)?s?|new[[:space:]]+feat(ure)?s?)[[:space:]]*([!]?[:.\-–—( ]\s*)?//I' \
-  | format_bullets
-)"
+# Features:
+# - matches: "feat", "feature", "features", "new feature(s)", "enhancement(s)", "improve/Improved/Improvement(s)"
+# - allows separators like ":", ".", "-", "–", "—", "(", or space after the keyword
+# - avoids matching inside other words (e.g., "defeature" won't match)
+FEATURE_GREP='(^|[^[:alnum:]])(feat(ure)?s?|new[[:space:]]+feat(ure)?s?|enhancement(s)?|improv(e|ed|es|ement|ements)?)([[:space:]]*([!]?[:.\-–—( ]|$))'
 
-FIXES="$(
-  grab "$FIX_GREP" \
-  | strip_bullet \
-  | sed -E 's/^(\[[^]]+\][[:space:]]*)*(fix(es)?|hotfix|bugfix|patch|bug|resolv(e|ed|es)|repair)[[:space:]]*([!]?[:.\-–—( ]\s*)?//I' \
-  | format_bullets
-)"
+# Fixes:
+# - matches: "fix", "fixes", "fixed", "hotfix", "bugfix", "patch", "bug", "resolve(d|s)", "repair(ed|s)"
+# - boundary-guarded to avoid "prefix"/"debug" false positives
+FIX_GREP='(^|[^[:alnum:]])(fix(ed|es)?|hotfix|bugfix|patch|bug|resolve(d|s)?|repair(ed|s)?)([[:space:]]*([!]?[:.\-–—( ]|$))'
 
-BREAKS="$(
-  grab "$BREAK_GREP" \
-  | strip_bullet \
-  | sed -E '
-      s/^[a-z]+(\([^)]+\))?![[:space:]]*[:.\-–—( ]\s*//I;
-      s/^breaking([ -]?changes?)?[[:space:]]*[:.\-–—( ]\s*//I;
-      s/^backwards?[ -]?incompatib(le|ility)[[:space:]]*[:.\-–—( ]\s*//I
-    ' \
-  | awk '!seen[$0]++' \
-  | format_bullets
-)"
+# Breaking:
+# A) "type(scope)!:" near the start (within first ~60 chars)
+# B) "breaking change(s)" or "breaking-change(s)" anywhere
+# C) "backward(s) incompatible"/"incompatibility" anywhere
+# (Using alternation; any of the three signals will qualify)
+BREAK_GREP='(^[[:space:]]*(\[[^]]+\][[:space:]]*)*[^:\n]{0,60}![[:space:]]*[:.\-–—( ])|((^|[^[:alnum:]])breaking([ -]?changes?)([^[:alnum:]]|$))|((^|[^[:alnum:]])backwards?[ -]?incompatib(le|ility)([^[:alnum:]]|$))'
 
 # Compose NOTABLE_CHANGES only when non-empty (no trailing padding)
 NOTABLE_CHANGES=""
