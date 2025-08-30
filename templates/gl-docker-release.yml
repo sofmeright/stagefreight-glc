@@ -122,7 +122,9 @@ variables:
   freight_docker_registry_3: $[[ inputs.freight_docker_registry_3 ]]
 
 build-image:
-  stage: build
+  artifacts:
+    reports:
+      dotenv: release_hints_images.env
   image:
     name: docker.jcr.pcfae.com/prplanit/stagefreight:latest
     entrypoint: [""]
@@ -130,6 +132,7 @@ build-image:
   services:
     - name: docker.jcr.pcfae.com/docker:24.0.5-dind
       alias: docker
+  stage: build
   before_script:
     - echo "Setting up Docker TLS context for buildx..."
     - docker context create tls-context --docker "host=$DOCKER_HOST,ca=$DOCKER_CERT_PATH/ca.pem,cert=$DOCKER_CERT_PATH/cert.pem,key=$DOCKER_CERT_PATH/key.pem"
@@ -194,6 +197,10 @@ build-image:
           docker push "$url/$path:latest"
         done
       fi
+      # Emit a dotenv for downstream notes
+      {
+        echo "BUILT_IMAGES=${ANY_PUSHED}"
+      } > release_hints_images.env
   rules:
     - if: '$CI_COMMIT_TAG'
       when: always
@@ -201,7 +208,7 @@ build-image:
 generate_release_notes:
   stage: release
   image: docker.jcr.pcfae.com/prplanit/stagefreight:latest
-  needs: [export_dependencies]
+  needs: [export_dependencies, build-image]
   only: [tags]
   artifacts:
     paths: 
