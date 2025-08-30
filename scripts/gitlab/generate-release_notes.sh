@@ -14,9 +14,6 @@ if ! git rev-list "${RELEASE}" >/dev/null 2>&1; then
   exit 1
 fi
 
-PREV_RELEASE=$(git describe --tags --abbrev=0 "${RELEASE}^" 2>/dev/null) || \
-PREV_RELEASE=$(git rev-list --max-parents=0 "${RELEASE}^")
-
 # Get the tag message (annotation) if this is an annotated tag
 # (GitLab UI creates an annotated tag when you fill "Set tag message")
 TAG_MESSAGE="$(git for-each-ref "refs/tags/${RELEASE}" --format='%(contents)' \
@@ -24,6 +21,70 @@ TAG_MESSAGE="$(git for-each-ref "refs/tags/${RELEASE}" --format='%(contents)' \
 
 # (optional) fallback to commit message if tag is lightweight/no message
 # [ "${TAG_MESSAGE}" ] || TAG_MESSAGE="$(git show -s --format=%B "${RELEASE}")"
+
+PREV_RELEASE=$(git describe --tags --abbrev=0 "${RELEASE}^" 2>/dev/null) || \
+PREV_RELEASE=$(git rev-list --max-parents=0 "${RELEASE}^")
+
+range="${PREV_RELEASE}..${RELEASE}"
+
+# -------- Flexible, case-insensitive patterns --------
+# Features: feat/feature/features/new feature(s) + loose separators
+FEATURE_GREP='^[[:space:]]*(\[[^]]+\][[:space:]]*)*(feat(ure)?s?|new[[:space:]]+feat(ure)?s?)[[:space:]]*([!]?[:.\-–—( ]|$)'
+
+# Fixes: fix/fixes/hotfix/bugfix/patch/bug/resolve(d|s)/repair + loose separators
+FIX_GREP='^[[:space:]]*(\[[^]]+\][[:space:]]*)*(fix(es)?|hotfix|bugfix|patch|bug|resolv(e|ed|es)|repair)[[:space:]]*([!]?[:.\-–—( ]|$)'
+
+# Breaking:
+#  A) type(scope)!: subject   (subject marker)
+#  B) "breaking change(s)" / "breaking-change(s)"   (footer/body or subject)
+#  C) "backward(s) incompatible"/"incompatibility"  (optional extra signal)
+BREAK_GREP='(^[^:\n]*![[:space:]]*[:.\-–—( ]|(^|[[:space:]])breaking([ -]?changes?)?([[:space:]]*[:.\-–—( ]|$)|(^|[[:space:]])backwards?[ -]?incompatib(le|ility)([[:space:]]*[:.\-–—( ]|$))'
+
+grab() {
+  git log --no-merges --regexp-ignore-case --extended-regexp \
+    --pretty='- %s (%aN)' "$range" --grep "$1"
+}
+
+# Strip helpers:
+#  1) drop leading "- " added by --pretty
+#  2) remove section-specific keywords/prefixes
+strip_bullet() { sed -E 's/^-[[:space:]]*//'; }
+
+FEATS="$(
+  grab "$FEATURE_GREP" \
+  | strip_bullet \
+  | sed -E 's/^(\[[^]]+\][[:space:]]*)*(feat(ure)?s?|new[[:space:]]+feat(ure)?s?)[[:space:]]*([!]?[:.\-–—( ]\s*)?//I'
+)"
+
+FIXES="$(
+  grab "$FIX_GREP" \
+  | strip_bullet \
+  | sed -E 's/^(\[[^]]+\][[:space:]]*)*(fix(es)?|hotfix|bugfix|patch|bug|resolv(e|ed|es)|repair)[[:space:]]*([!]?[:.\-–—( ]\s*)?//I'
+)"
+
+BREAKS="$(
+  grab "$BREAK_GREP" \
+  | strip_bullet \
+  | sed -E '
+      s/^[a-z]+(\([^)]+\))?![[:space:]]*[:.\-–—( ]\s*//I;           # drop "type(scope)!: "
+      s/^breaking([ -]?changes?)?[[:space:]]*[:.\-–—( ]\s*//I;      # drop "breaking change(s)[…]"
+      s/^backwards?[ -]?incompatib(le|ility)[[:space:]]*[:.\-–—( ]\s*//I
+    ' \
+  | awk '!seen[$0]++'   # de-dupe
+)"
+
+# Compose NOTABLE_CHANGES only when non-empty
+NOTABLE_CHANGES=""
+[ -n "$FEATS"  ] && NOTABLE_CHANGES="${NOTABLE_CHANGES}### Features
+$FEATS
+
+"
+[ -n "$FIXES"  ] && NOTABLE_CHANGES="${NOTABLE_CHANGES}### Fixes
+$FIXES
+
+"
+[ -n "$BREAKS" ] && NOTABLE_CHANGES="${NOTABLE_CHANGES}### Breaking changes
+$BREAKS
 
 NOTABLE_CHANGES=$(git tag -l --format='%(contents)' "$RELEASE" | sed '/-----BEGIN PGP SIGNATURE-----/,//d' | tail -n +6)
 CHANGELOG=$(git log --no-merges --pretty=format:'- [%h] %s (%aN)' "${PREV_RELEASE}..${RELEASE}")
