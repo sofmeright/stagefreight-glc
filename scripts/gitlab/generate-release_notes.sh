@@ -49,31 +49,36 @@ grab() {
 #  1) drop leading "- " added by --pretty
 #  2) remove section-specific keywords/prefixes
 strip_bullet() { sed -E 's/^-[[:space:]]*//'; }
+# Turn non-empty lines into "- ..." bullets (keeps one line per item)
+format_bullets() { awk 'NF{print "- " $0}'; }
 
 FEATS="$(
   grab "$FEATURE_GREP" \
   | strip_bullet \
-  | sed -E 's/^(\[[^]]+\][[:space:]]*)*(feat(ure)?s?|new[[:space:]]+feat(ure)?s?)[[:space:]]*([!]?[:.\-–—( ]\s*)?//I'
+  | sed -E 's/^(\[[^]]+\][[:space:]]*)*(feat(ure)?s?|new[[:space:]]+feat(ure)?s?)[[:space:]]*([!]?[:.\-–—( ]\s*)?//I' \
+  | format_bullets
 )"
 
 FIXES="$(
   grab "$FIX_GREP" \
   | strip_bullet \
-  | sed -E 's/^(\[[^]]+\][[:space:]]*)*(fix(es)?|hotfix|bugfix|patch|bug|resolv(e|ed|es)|repair)[[:space:]]*([!]?[:.\-–—( ]\s*)?//I'
+  | sed -E 's/^(\[[^]]+\][[:space:]]*)*(fix(es)?|hotfix|bugfix|patch|bug|resolv(e|ed|es)|repair)[[:space:]]*([!]?[:.\-–—( ]\s*)?//I' \
+  | format_bullets
 )"
 
 BREAKS="$(
   grab "$BREAK_GREP" \
   | strip_bullet \
   | sed -E '
-      s/^[a-z]+(\([^)]+\))?![[:space:]]*[:.\-–—( ]\s*//I;           # drop "type(scope)!: "
-      s/^breaking([ -]?changes?)?[[:space:]]*[:.\-–—( ]\s*//I;      # drop "breaking change(s)[…]"
+      s/^[a-z]+(\([^)]+\))?![[:space:]]*[:.\-–—( ]\s*//I;
+      s/^breaking([ -]?changes?)?[[:space:]]*[:.\-–—( ]\s*//I;
       s/^backwards?[ -]?incompatib(le|ility)[[:space:]]*[:.\-–—( ]\s*//I
     ' \
-  | awk '!seen[$0]++'   # de-dupe
+  | awk '!seen[$0]++' \
+  | format_bullets
 )"
 
-# Compose NOTABLE_CHANGES only when non-empty
+# Compose NOTABLE_CHANGES only when non-empty (no trailing padding)
 NOTABLE_CHANGES=""
 sep=""
 if [ -n "$FEATS" ]; then
@@ -101,15 +106,23 @@ CHANGELOG=$(git log --no-merges --pretty=format:'- [%h] %s (%aN)' "${PREV_RELEAS
 PROJECT_NAME="${CI_PROJECT_NAME:-$(basename "$(git rev-parse --show-toplevel 2>/dev/null || echo .)")}"
 PROJECT_URL="${CI_PROJECT_URL:-$(git config --get remote.origin.url 2>/dev/null | sed 's/\.git$//')}"
 
-# Optional status hints (set these in CI before calling the script if you want green ticks)
-# BUILT_BINARIES=true
-# BUILT_COMPONENTS=true
-# BUILT_IMAGES=true
-# BUILT_PACKAGES=true
-# BUILT_HELM=true
-# BUILT_SBOM=true
+# ---- Always-on compact Assets note (lists only confirmed items) ----
+assets=""
+add_asset() { [ "${1:-}" = "true" ] && assets="${assets:+$assets • }$2"; }
 
-yn() { [ "$1" = "true" ] && printf "✅ " || printf ""; }
+add_asset "${BUILT_IMAGES:-}"     "images"
+add_asset "${BUILT_BINARIES:-}"   "binaries"
+add_asset "${BUILT_PACKAGES:-}"   "packages"
+add_asset "${BUILT_COMPONENTS:-}" "components"
+add_asset "${BUILT_HELM:-}"       "helm"
+add_asset "${BUILT_SBOM:-}"       "SBOM"
+
+if [ -n "$assets" ]; then
+  ASSETS_NOTE="> Assets available: $assets — see links in the **Assets** box at the top of this release."
+else
+  ASSETS_NOTE="> Tip: When assets (images, binaries, packages, components, helm, SBOM) are published, their links appear in the **Assets** box at the top."
+fi
+# -------------------------------------------------------------------
 
 cat <<EOF
 # AntParade GitOps 🐜 — ${PROJECT_NAME}:${RELEASE}
@@ -117,36 +130,23 @@ cat <<EOF
 # Release Highlights
 ${TAG_MESSAGE:-}
 
-# Noteable Changes
+# Notable Changes
 ${NOTABLE_CHANGES}
 
 # Images & Artifacts Availability
-
-If **container images**, **binaries**, or other **artifacts** were produced for this release, you’ll find them in the **Assets** section of this Release (above).  
-Links are added automatically for any configured registries (Docker Hub, Quay, JFrog, GHCR, GitLab Container Registry, or a generic OCI endpoint), as well as any uploaded files.
-
-Typical assets you may see:
-- $(yn "${BUILT_IMAGES:-}")Container images (registry links)
-- $(yn "${BUILT_PACKAGES:-}")OS packages (\`.deb\`, \`.rpm\`, \`.apk\`, \`.msi\`)
-- $(yn "${BUILT_BINARIES:-}")CLI binaries / archives (e.g., \`.tar.gz\`, \`.zip\`, \`.exe\`)
-- $(yn "${BUILT_COMPONENTS:-}")GitLab CI/CD components (published to Catalog)
-- $(yn "${BUILT_HELM:-}")Helm charts / Kubernetes manifests
-- $(yn "${BUILT_SBOM:-}")SBOMs / attestations (e.g., SLSA provenance)
-
-> Note: We intentionally keep release notes clean and defer to the **Assets** panel for direct download links.
+${ASSETS_NOTE}
 
 ## Installation
-
-For installation and usage instructions, see the [README](${PROJECT_URL}/-/blob/${RELEASE}/README.md)
+- For installation and usage instructions, see the [README](${PROJECT_URL}/-/blob/${RELEASE}/README.md)
 
 ## Contributing
-
 If you find this useful, you can help:
-
 - Submit a Merge Request with new features or fixes
 - Report bugs or issues on [Issues](${PROJECT_URL}/-/issues)
+- You can donate funds to help with my operating cost.
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/T6T41IT163)
 
 ## Changelog
-
 ${CHANGELOG}
 EOF
