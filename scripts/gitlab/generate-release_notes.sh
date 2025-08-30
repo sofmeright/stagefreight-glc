@@ -27,17 +27,17 @@ PREV_RELEASE=$(git rev-list --max-parents=0 "${RELEASE}^")
 
 range="${PREV_RELEASE}..${RELEASE}"
 
-# -------- Flexible, case-insensitive patterns --------
-# Features: feat/feature/features/new feature(s) + loose separators
+# -------- Flexible, case-insensitive detectors (filter only; do not mutate text) --------
+# Features: feat/feature/features/new feature(s) with loose separators, optional bracket tags up front
 FEATURE_GREP='^[[:space:]]*(\[[^]]+\][[:space:]]*)*(feat(ure)?s?|new[[:space:]]+feat(ure)?s?)[[:space:]]*([!]?[:.\-–—( ]|$)'
 
-# Fixes: fix/fixes/hotfix/bugfix/patch/bug/resolve(d|s)/repair + loose separators
+# Fixes: fix/fixes/hotfix/bugfix/patch/bug/resolve(d|s)/repair with loose separators, optional bracket tags
 FIX_GREP='^[[:space:]]*(\[[^]]+\][[:space:]]*)*(fix(es)?|hotfix|bugfix|patch|bug|resolv(e|ed|es)|repair)[[:space:]]*([!]?[:.\-–—( ]|$)'
 
 # Breaking:
 #  A) type(scope)!: subject   (subject marker)
 #  B) "breaking change(s)" / "breaking-change(s)"   (footer/body or subject)
-#  C) "backward(s) incompatible"/"incompatibility"  (optional extra signal)
+#  C) "backward(s) incompatible"/"incompatibility"
 BREAK_GREP='(^[^:\n]*![[:space:]]*[:.\-–—( ]|(^|[[:space:]])breaking([ -]?changes?)?([[:space:]]*[:.\-–—( ]|$)|(^|[[:space:]])backwards?[ -]?incompatib(le|ility)([[:space:]]*[:.\-–—( ]|$))'
 
 grab() {
@@ -45,30 +45,31 @@ grab() {
     --pretty='- %s (%aN)' "$range" --grep "$1"
 }
 
-# Strip helpers:
-#  1) drop leading "- " added by --pretty
-#  2) remove section-specific keywords/prefixes
+# Helpers
+# 1) drop leading "- " added by --pretty
 strip_bullet() { sed -E 's/^-[[:space:]]*//'; }
-# Turn non-empty lines into "- ..." bullets (keeps one line per item)
+# 2) turn non-empty lines into "- ..." bullets (one per line)
 format_bullets() { awk 'NF{print "- " $0}'; }
 
-# Features:
-# - matches: "feat", "feature", "features", "new feature(s)", "enhancement(s)", "improve/Improved/Improvement(s)"
-# - allows separators like ":", ".", "-", "–", "—", "(", or space after the keyword
-# - avoids matching inside other words (e.g., "defeature" won't match)
-FEATURE_GREP='(^|[^[:alnum:]])(feat(ure)?s?|new[[:space:]]+feat(ure)?s?|enhancement(s)?|improv(e|ed|es|ement|ements)?)([[:space:]]*([!]?[:.\-–—( ]|$))'
+# NOTE: No more prefix stripping; we only filter by *_GREP.
+FEATS="$(
+  grab "$FEATURE_GREP" \
+  | strip_bullet \
+  | format_bullets
+)"
 
-# Fixes:
-# - matches: "fix", "fixes", "fixed", "hotfix", "bugfix", "patch", "bug", "resolve(d|s)", "repair(ed|s)"
-# - boundary-guarded to avoid "prefix"/"debug" false positives
-FIX_GREP='(^|[^[:alnum:]])(fix(ed|es)?|hotfix|bugfix|patch|bug|resolve(d|s)?|repair(ed|s)?)([[:space:]]*([!]?[:.\-–—( ]|$))'
+FIXES="$(
+  grab "$FIX_GREP" \
+  | strip_bullet \
+  | format_bullets
+)"
 
-# Breaking:
-# A) "type(scope)!:" near the start (within first ~60 chars)
-# B) "breaking change(s)" or "breaking-change(s)" anywhere
-# C) "backward(s) incompatible"/"incompatibility" anywhere
-# (Using alternation; any of the three signals will qualify)
-BREAK_GREP='(^[[:space:]]*(\[[^]]+\][[:space:]]*)*[^:\n]{0,60}![[:space:]]*[:.\-–—( ])|((^|[^[:alnum:]])breaking([ -]?changes?)([^[:alnum:]]|$))|((^|[^[:alnum:]])backwards?[ -]?incompatib(le|ility)([^[:alnum:]]|$))'
+BREAKS="$(
+  grab "$BREAK_GREP" \
+  | strip_bullet \
+  | awk '!seen[$0]++' \
+  | format_bullets
+)"
 
 # Compose NOTABLE_CHANGES only when non-empty (no trailing padding)
 NOTABLE_CHANGES=""
