@@ -75,19 +75,26 @@ BREAKS="$(
 
 # Compose NOTABLE_CHANGES only when non-empty
 NOTABLE_CHANGES=""
-[ -n "$FEATS"  ] && NOTABLE_CHANGES="${NOTABLE_CHANGES}### Features
-$FEATS
+sep=""
+if [ -n "$FEATS" ]; then
+  NOTABLE_CHANGES="${NOTABLE_CHANGES}${sep}### Features
+$FEATS"
+  sep="
 
 "
-[ -n "$FIXES"  ] && NOTABLE_CHANGES="${NOTABLE_CHANGES}### Fixes
-$FIXES
+fi
+if [ -n "$FIXES" ]; then
+  NOTABLE_CHANGES="${NOTABLE_CHANGES}${sep}### Fixes
+$FIXES"
+  sep="
 
 "
-[ -n "$BREAKS" ] && NOTABLE_CHANGES="${NOTABLE_CHANGES}### Breaking changes
-$BREAKS
+fi
+if [ -n "$BREAKS" ]; then
+  NOTABLE_CHANGES="${NOTABLE_CHANGES}${sep}### Breaking changes
+$BREAKS"
+fi
 
-"
-NOTABLE_CHANGES=$(git tag -l --format='%(contents)' "$RELEASE" | sed '/-----BEGIN PGP SIGNATURE-----/,//d' | tail -n +6)
 CHANGELOG=$(git log --no-merges --pretty=format:'- [%h] %s (%aN)' "${PREV_RELEASE}..${RELEASE}")
 
 # Fallbacks for local runs
