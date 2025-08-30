@@ -140,6 +140,7 @@ build-image:
   script:
     - |
       set -euo pipefail
+      ANY_PUSHED=false   # <— initialize so -u doesn’t explode
 
       echo "Starting image build using buildx..."
       docker buildx build \
@@ -165,9 +166,9 @@ build-image:
           echo "Pushing to $registry_name ($url)..."
           echo "$pass" | docker login -u "$user" --password-stdin "$url"
           docker tag "$CI_PROJECT_PATH:$CI_COMMIT_TAG" "$url/$path:$CI_COMMIT_TAG"
-          docker push "$url/$path:$CI_COMMIT_TAG"
+          docker push "$url/$path:$CI_COMMIT_TAG" && ANY_PUSHED=true    # <—
           docker tag "$CI_PROJECT_PATH:$CI_COMMIT_TAG" "$url/$path:latest"
-          docker push "$url/$path:latest"
+          docker push "$url/$path:latest" && ANY_PUSHED=true            # <—
         done
       else
         echo "Using up to 3 registry input slots..."
@@ -192,12 +193,13 @@ build-image:
           echo "Pushing to $registry ($url)..."
           echo "$pass" | docker login -u "$user" --password-stdin "$url"
           docker tag "$CI_PROJECT_PATH:$CI_COMMIT_TAG" "$url/$path:$CI_COMMIT_TAG"
-          docker push "$url/$path:$CI_COMMIT_TAG"
+          docker push "$url/$path:$CI_COMMIT_TAG" && ANY_PUSHED=true    # <—
           docker tag "$CI_PROJECT_PATH:$CI_COMMIT_TAG" "$url/$path:latest"
-          docker push "$url/$path:latest"
+          docker push "$url/$path:latest" && ANY_PUSHED=true            # <—
         done
       fi
-      # Emit a dotenv for downstream notes
+
+      # Emit a dotenv for downstream notes (always defined now)
       {
         echo "BUILT_IMAGES=${ANY_PUSHED}"
       } > release_hints_images.env
