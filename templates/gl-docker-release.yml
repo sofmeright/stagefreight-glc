@@ -236,16 +236,136 @@ create-release:
         --form "description=$RELEASE_NOTES" \
         "$CI_API_V4_URL/projects/$CI_PROJECT_ID/releases" || echo "Release might already exist"
     - |
-      if [ -z "${DOCKER_RELEASE_PATH:-}" ]; then
-          echo "DOCKER_RELEASE_PATH not set. Skipping link embed."
-          exit 0
+      # --- Dynamic Release Links ---------------------------------------------------
+      set -euo pipefail
+
+      # Helpers
+      json_escape() { jq -Rn --arg s "$1" '$s'; }
+
+      build_registry_link() {
+        local url="$1" path="$2" tag="$3" reg_name="$4"
+
+        # host parts
+        local host="${url#*://}"; host="${host%%/*}"
+        local first_label="${host%%.*}"
+
+        # normalize to lowercase for detection
+        local lhost="$(echo "$host" | tr '[:upper:]' '[:lower:]')"
+        local lname="$(echo "$reg_name" | tr '[:upper:]' '[:lower:]')"
+
+        # vendor guess
+        local vendor=""
+        if [[ "$lhost" == *"docker.io"* || "$lname" == *"dockerhub"* || "$lname" == *"docker hub"* ]]; then vendor="dockerhub"; fi
+        if [[ "$lhost" == *"ghcr.io"* || "$lname" == *"ghcr"* ]]; then vendor="ghcr"; fi
+        if [[ "$lhost" == *"quay"* || "$lname" == *"quay"* ]]; then vendor="quay"; fi
+        if [[ "$lhost" == *"jfrog"* || "$lhost" == *"artifactory"* || "$lname" == *"jfrog"* || "$lname" == *"jcr"* ]]; then vendor="jfrog"; fi
+        # self-managed GitLab registry (e.g., registry.gitlab.example.com) or registry on same domain
+        if [[ -n "${GITLAB_DOMAIN:-}" ]]; then
+          local lgit="$(echo "$GITLAB_DOMAIN" | tr '[:upper:]' '[:lower:]')"
+          if [[ "$lhost" == *"gitlab"* || "$lhost" == *"$lgit"* ]]; then vendor="gitlab"; fi
         fi
-      DOCKER_IMAGE_LINK="https://hub.docker.com/r/$DOCKER_RELEASE_PATH/tags?page=1&name=$CI_COMMIT_TAG"
-      curl --silent --fail --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
-        --request POST \
-        --header "Content-Type: application/json" \
-        --data "{\"name\":\"Docker Image $CI_COMMIT_TAG\",\"url\":\"$DOCKER_IMAGE_LINK\",\"link_type\":\"other\"}" \
-        "$CI_API_V4_URL/projects/$CI_PROJECT_ID/releases/$CI_COMMIT_TAG/assets/links"
+
+        # build link
+        local link=""
+        case "$vendor" in
+          dockerhub)
+            link="https://hub.docker.com/r/${path}/tags?page=1&name=${tag}"
+            ;;
+          ghcr)
+            # path "owner/image"
+            local owner="${path%%/*}"
+            local image="${path#*/}"
+            # assume org package page (works for orgs; for users the path is /users/<owner>/...)
+            link="https://github.com/orgs/${owner}/packages/container/package/${image}"
+            ;;
+          quay)
+            # Quay-like UI (your example: https://cr.pcfae.com/repository/<ns>/<repo>)
+            link="https://${host}/repository/${path}"
+            ;;
+          jfrog)
+            # Artifactory UI (your example): https://<host>/ui/repos/tree/General/<repoKey>/<ns>/<repo>
+            # use first subdomain as repoKey (e.g., 'docker' in docker.jcr.pcfae.com), fallback to 'docker'
+            local repokey="${first_label:-docker}"
+            link="https://${host}/ui/repos/tree/General/${repokey}/${path}"
+            ;;
+          gitlab)
+            # Try to form GitLab Packages (Container) page:
+            #   https://<gitlab-domain>/<group>/<project>/-/packages/container[/<image>]
+            IFS='/' read -ra parts <<< "$path"
+            if (( ${#parts[@]} >= 2 )); then
+              local group="${parts[0]}"
+              local project="${parts[1]}"
+              if (( ${#parts[@]} > 2 )); then
+                local image_path="${path#${group}/${project}/}"
+                link="https://${GITLAB_DOMAIN}/${group}/${project}/-/packages/container/${image_path}"
+              else
+                link="https://${GITLAB_DOMAIN}/${group}/${project}/-/packages/container"
+              fi
+            else
+              link="https://${GITLAB_DOMAIN}/-/packages"
+            fi
+            ;;
+          *)
+            # Generic OCI v2 manifest endpoint (not pretty UI but always exists)
+            link="${url}/v2/${path}/manifests/${tag}"
+            ;;
+        esac
+
+        echo "$link"
+      }
+
+      post_link_if_missing() {
+        local name="$1" url="$2" type="$3"
+        # Skip if already present (name or URL)
+        if echo "$EXISTING_LINKS_JSON" | jq -e --arg n "$name" --arg u "$url" '.[] | select(.name==$n or .url==$u)' >/dev/null; then
+          echo "Link exists: $name — skipping"
+          return 0
+        fi
+        echo "Embedding release link: $name -> $url"
+        curl --silent --fail \
+          --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+          --header "Content-Type: application/json" \
+          --data "{\"name\":$(json_escape "$name"),\"url\":$(json_escape "$url"),\"link_type\":\"$type\"}" \
+          "$CI_API_V4_URL/projects/$CI_PROJECT_ID/releases/$CI_COMMIT_TAG/assets/links" \
+          || echo "⚠️ Failed to add link: $name"
+      }
+
+      # Pull existing links once for idempotency
+      EXISTING_LINKS_JSON="$(curl --silent --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+        "$CI_API_V4_URL/projects/$CI_PROJECT_ID/releases/$CI_COMMIT_TAG/assets/links" || echo "[]")"
+
+      # 1) Links for override list (freight_docker_override via yq)
+      if [[ -n "${freight_docker_override:-}" ]]; then
+        echo "$freight_docker_override" | yq -P '.' > /tmp/override_registry_list.yml
+        count=$(yq '. | length' /tmp/override_registry_list.yml)
+        for i in $(seq 0 $((count - 1))); do
+          url=$(yq -r ".[$i].url" /tmp/override_registry_list.yml)
+          path=$(yq -r ".[$i].path" /tmp/override_registry_list.yml)
+          reg_name=$(yq -r ".[$i].registry // \"registry_${i}\"" /tmp/override_registry_list.yml)
+
+          [[ -z "$url" || -z "$path" ]] && { echo "Skip override[$i]: missing url/path"; continue; }
+
+          link="$(build_registry_link "$url" "$path" "$CI_COMMIT_TAG" "$reg_name")"
+          post_link_if_missing "${reg_name} ${CI_COMMIT_TAG}" "$link" "image"
+        done
+      else
+        # 2) Links for the three input slots
+        for i in 1 2 3; do
+          url_var="freight_docker_url_$i"
+          path_var="freight_docker_path_$i"
+          name_var="freight_docker_registry_$i"
+
+          url="${!url_var:-}"
+          path="${!path_var:-}"
+          reg_name="${!name_var:-registry_$i}"
+
+          [[ -z "$url" || -z "$path" ]] && { echo "Skip slot #$i: missing url/path"; continue; }
+
+          link="$(build_registry_link "$url" "$path" "$CI_COMMIT_TAG" "$reg_name")"
+          post_link_if_missing "${reg_name} ${CI_COMMIT_TAG}" "$link" "image"
+        done
+      fi
+      # ---------------------------------------------------------------------------
 
 update-release-badge:
   artifacts:
