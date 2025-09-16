@@ -234,7 +234,6 @@ build-image:
     - if: '$CI_COMMIT_TAG'
       when: always
 
-# New security scanning job
 security-scan:
   stage: security
   image:
@@ -261,6 +260,15 @@ security-scan:
       if [ "$SECURITY_SBOM_ENABLED" = "true" ]; then
         curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
       fi
+    - |
+      # Install cosign for attestations
+      COSIGN_VERSION="v2.2.2"
+      curl -Lo /usr/local/bin/cosign https://github.com/sigstore/cosign/releases/download/${COSIGN_VERSION}/cosign-linux-amd64
+      chmod +x /usr/local/bin/cosign
+    - |
+      # Setup Docker context for buildx
+      docker context create tls-context --docker "host=$DOCKER_HOST,ca=$DOCKER_CERT_PATH/ca.pem,cert=$DOCKER_CERT_PATH/cert.pem,key=$DOCKER_CERT_PATH/key.pem"
+      docker buildx create --name attestation-builder --driver docker-container --use tls-context
     - |
       # Load the image
       docker load -i image.tar
@@ -294,6 +302,13 @@ security-scan:
         --exit-code 0 \
         --format sarif \
         --output security-reports/trivy-report.sarif \
+        ${IMAGE_TAG}
+
+      # Generate Trivy attestation format for Docker Hub
+      trivy image \
+        --exit-code 0 \
+        --format cosign-vuln \
+        --output security-reports/trivy-vuln.attestation.json \
         ${IMAGE_TAG}
 
       # Generate SBOM if enabled
@@ -338,6 +353,208 @@ security-scan:
 
       echo "SECURITY_BADGE_URL=https://img.shields.io/badge/security-${BADGE_STATUS}-${BADGE_COLOR}" > security-reports/badge.env
 
+      # ======================================================================
+      # Push attestations to Docker Hub (and other registries that support it)
+      # ======================================================================
+      echo "📎 Pushing security attestations to registries..."
+
+      # Function to detect registry vendor (same logic as release links)
+      detect_registry_vendor() {
+        local url="$1"
+        local reg_name="$2"
+
+        local host="${url#*://}"; host="${host%%/*}"
+        local lhost="$(echo "$host" | tr '[:upper:]' '[:lower:]')"
+        local lname="$(echo "$reg_name" | tr '[:upper:]' '[:lower:]')"
+
+        if [[ "$lhost" == *"docker.io"* || "$url" == "docker.io" || "$lname" == *"dockerhub"* || "$lname" == *"docker hub"* || "$lname" == "docker" ]]; then
+          echo "dockerhub"
+        elif [[ "$lhost" == *"ghcr.io"* || "$lname" == *"ghcr"* ]]; then
+          echo "ghcr"
+        elif [[ "$lhost" == *"quay"* || "$lname" == *"quay"* ]]; then
+          echo "quay"
+        else
+          echo "other"
+        fi
+      }
+
+      # Function to push attestations to Docker Hub
+      push_dockerhub_attestations() {
+        local image_url="$1"
+        local user="$2"
+        local pass="$3"
+
+        echo "🐳 Pushing attestations to Docker Hub: ${image_url}"
+
+        # Login to Docker Hub
+        echo "$pass" | docker login -u "$user" --password-stdin docker.io
+
+        # Create SBOM attestation if available
+        if [ -f security-reports/sbom.spdx.json ]; then
+          echo "  📦 Attaching SBOM attestation..."
+
+          # Create attestation using buildx (Docker Hub native support)
+          docker buildx imagetools create \
+            --tag "${image_url}:${CI_COMMIT_TAG}" \
+            --annotation "vnd.docker.reference.type=attestation" \
+            --annotation "vnd.docker.reference.digest=sbom" \
+            --file security-reports/sbom.spdx.json \
+            "${image_url}:${CI_COMMIT_TAG}" 2>/dev/null || {
+              # Fallback: Use cosign if buildx fails
+              echo "    Using cosign for SBOM attestation..."
+              cosign attest --yes \
+                --predicate security-reports/sbom.spdx.json \
+                --type spdxjson \
+                "${image_url}:${CI_COMMIT_TAG}" 2>/dev/null || echo "    ⚠️ Failed to attach SBOM"
+            }
+        fi
+
+        # Create vulnerability attestation
+        if [ -f security-reports/trivy-vuln.attestation.json ]; then
+          echo "  🔍 Attaching vulnerability attestation..."
+
+          # Create custom attestation for vulnerabilities
+          cat > vuln-attestation.json << ATTESTATION_EOF
+      {
+        "_type": "https://in-toto.io/Statement/v0.1",
+        "predicateType": "https://cosign.dev/attestation/vuln/v1",
+        "subject": [
+          {
+            "name": "${image_url}",
+            "digest": {
+              "sha256": "$(docker inspect --format='{{index .RepoDigests 0}}' ${image_url}:${CI_COMMIT_TAG} | cut -d@ -f2 | cut -d: -f2)"
+            }
+          }
+        ],
+        "predicate": {
+          "scanner": {
+            "uri": "pkg:github/aquasecurity/trivy",
+            "version": "latest",
+            "db": {
+              "uri": "pkg:github/aquasecurity/trivy-db",
+              "version": "latest"
+            }
+          },
+          "metadata": {
+            "scanStartedOn": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "scanFinishedOn": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "repoUri": "$CI_PROJECT_URL",
+            "commit": "$CI_COMMIT_SHA"
+          },
+          "result": {
+            "criticalCount": ${CRITICAL},
+            "highCount": ${HIGH},
+            "mediumCount": ${MEDIUM},
+            "lowCount": ${LOW},
+            "unknownCount": 0
+          }
+        }
+      }
+      ATTESTATION_EOF
+
+          cosign attest --yes \
+            --predicate vuln-attestation.json \
+            --type vuln \
+            "${image_url}:${CI_COMMIT_TAG}" 2>/dev/null || echo "    ⚠️ Failed to attach vulnerability attestation"
+        fi
+
+        # Update Docker Hub description via API (if possible)
+        echo "  📝 Updating Docker Hub description..."
+
+        # Extract namespace and repo name
+        local namespace="${image_url%/*}"
+        namespace="${namespace#*/}"  # Remove docker.io/ if present
+        local repo="${image_url##*/}"
+        
+        # Create description with security info
+        cat > dockerhub-description.md << DESC_EOF
+      ## Security Information
+      
+      This image is automatically scanned for vulnerabilities.
+      
+      ### Latest Scan Results (${CI_COMMIT_TAG})
+      
+      - 🔴 Critical: ${CRITICAL}
+      - 🟠 High: ${HIGH}
+      - 🟡 Medium: ${MEDIUM}
+      - 🟢 Low: ${LOW}
+      
+      ### Retrieving Attestations
+      
+      To view the Software Bill of Materials:
+      \`\`\`bash
+      docker buildx imagetools inspect ${image_url}:${CI_COMMIT_TAG} --format "{{json .SBOM}}"
+      \`\`\`
+      
+      To verify attestations with cosign:
+      \`\`\`bash
+      cosign verify-attestation ${image_url}:${CI_COMMIT_TAG}
+      \`\`\`
+      
+      Last scan: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+      DESC_EOF
+        
+        # Note: Docker Hub API for updating descriptions requires JWT token
+        # This would need additional setup, so we just prepare the file
+        echo "    ℹ️ Docker Hub description prepared in dockerhub-description.md"
+      }
+
+      # Process each registry
+      if [[ -n "${freight_docker_override:-}" ]]; then
+        echo "Processing overridden registry list..."
+        echo "$freight_docker_override" | yq -P '.' > /tmp/override_registry_list.yml
+        count=$(yq '. | length' /tmp/override_registry_list.yml)
+
+        for i in $(seq 0 $((count - 1))); do
+          url=$(yq -r ".[$i].url" /tmp/override_registry_list.yml)
+          user=$(yq -r ".[$i].user" /tmp/override_registry_list.yml)
+          pass=$(yq -r ".[$i].pass" /tmp/override_registry_list.yml)
+          path=$(yq -r ".[$i].path" /tmp/override_registry_list.yml)
+          registry_name=$(yq -r ".[$i].registry // \"registry_${i}\"" /tmp/override_registry_list.yml)
+
+          [[ -z "$url" || -z "$user" || -z "$pass" || -z "$path" ]] && continue
+
+          vendor=$(detect_registry_vendor "$url" "$registry_name")
+
+          if [ "$vendor" = "dockerhub" ]; then
+            # For Docker Hub, use special attestation flow
+            push_dockerhub_attestations "docker.io/$path" "$user" "$pass"
+          else
+            echo "ℹ️ Skipping attestations for $registry_name (vendor: $vendor) - not Docker Hub"
+          fi
+        done
+      else
+        echo "Processing standard registry slots..."
+        for i in 1 2 3; do
+          url_var="freight_docker_url_$i"
+          user_var="freight_docker_user_$i"
+          pass_var="freight_docker_pass_$i"
+          path_var="freight_docker_path_$i"
+          registry_var="freight_docker_registry_$i"
+
+          url="${!url_var:-}"
+          user="${!user_var:-}"
+          pass="${!pass_var:-}"
+          path="${!path_var:-}"
+          registry="${!registry_var:-registry_$i}"
+
+          [[ -z "$url" || -z "$user" || -z "$pass" || -z "$path" ]] && continue
+
+          vendor=$(detect_registry_vendor "$url" "$registry")
+
+          if [ "$vendor" = "dockerhub" ]; then
+            # Ensure we use docker.io as the URL for Docker Hub
+            if [[ "$url" == "docker.io" || "$url" == "https://docker.io" || "$url" == "http://docker.io" ]]; then
+              push_dockerhub_attestations "docker.io/$path" "$user" "$pass"
+            else
+              echo "ℹ️ Registry $registry detected as Docker Hub but URL is $url - skipping attestations"
+            fi
+          else
+            echo "ℹ️ Skipping attestations for $registry (vendor: $vendor) - not Docker Hub"
+          fi
+        done
+      fi
+
       # Optionally fail on critical vulnerabilities
       if [ "$SECURITY_FAIL_ON_CRITICAL" = "true" ] && [ "$CRITICAL" -gt 0 ]; then
         echo "❌ Critical vulnerabilities found! Failing pipeline."
@@ -348,6 +565,8 @@ security-scan:
       container_scanning: security-reports/trivy-report.sarif
     paths:
       - security-reports/
+      - dockerhub-description.md
+      - vuln-attestation.json
     expire_in: 30 days
   allow_failure: true
   rules:
