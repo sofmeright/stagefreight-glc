@@ -108,17 +108,57 @@ add_asset "${BUILT_BINARIES:-}"   "binaries"
 add_asset "${BUILT_PACKAGES:-}"   "packages"
 add_asset "${BUILT_COMPONENTS:-}" "components"
 add_asset "${BUILT_HELM:-}"       "helm"
-add_asset "${BUILT_SBOM:-}"       "SBOM"
+add_asset "${SBOM_GENERATED:-}"   "SBOM"
 
 if [ -n "$assets" ]; then
   ASSETS_NOTE="> Assets available: $assets — see links in the **Assets** box at the top of this release."
 else
   ASSETS_NOTE="> Tip: When assets (images, binaries, packages, components, helm, SBOM) are published, their links appear in the **Assets** box at the top."
 fi
+
+# ---- Security Scan Summary ----
+SECURITY_SECTION=""
+if [ -n "${SECURITY_STATUS:-}" ]; then
+  case "${SECURITY_STATUS}" in
+    passed)
+      SECURITY_BADGE="🛡️ **Security Scan:** ✅ Passed"
+      SECURITY_DETAILS="No critical or high vulnerabilities detected."
+      ;;
+    warning)
+      SECURITY_BADGE="🛡️ **Security Scan:** ⚠️ Warning"
+      SECURITY_DETAILS="${HIGH_VULNS:-0} high vulnerabilities detected (no critical issues)."
+      ;;
+    critical)
+      SECURITY_BADGE="🛡️ **Security Scan:** ❌ Critical"
+      SECURITY_DETAILS="${CRITICAL_VULNS:-0} critical and ${HIGH_VULNS:-0} high vulnerabilities detected."
+      ;;
+    skipped)
+      SECURITY_BADGE="🛡️ **Security Scan:** ⏭️ Skipped"
+      SECURITY_DETAILS="Security scanning was disabled for this release."
+      ;;
+    *)
+      SECURITY_BADGE=""
+      SECURITY_DETAILS=""
+      ;;
+  esac
+  
+  if [ -n "$SECURITY_BADGE" ]; then
+    SECURITY_SECTION="
+## Security Status
+${SECURITY_BADGE}
+${SECURITY_DETAILS}"
+    
+    if [ "${SBOM_GENERATED:-}" = "true" ]; then
+      SECURITY_SECTION="${SECURITY_SECTION}
+
+📦 Software Bill of Materials (SBOM) has been generated and attached to container registries where supported."
+    fi
+  fi
+fi
 # -------------------------------------------------------------------
 
 cat <<EOF
-# PrecisionPlanIT 🌎 — ${PROJECT_NAME}:${RELEASE}
+# AntParade GitOps 🐜 — ${PROJECT_NAME}:${RELEASE}
 
 # Release Highlights
 ${TAG_MESSAGE:-}
@@ -128,6 +168,7 @@ ${NOTABLE_CHANGES}
 
 # Images & Artifacts Availability
 ${ASSETS_NOTE}
+${SECURITY_SECTION}
 
 ## Installation
 - For installation and usage instructions, see the [README](${PROJECT_URL}/-/blob/${RELEASE}/README.md)
