@@ -16,6 +16,20 @@ spec:
     freight_pipeline_status_file:
       description: 'Path to store "badge-release_status.svg" within parent pipelines repo.'
       default: "assets/badge-release_status.svg"
+    # input_section_name- Security Scanning Settings
+    # input_section_desc- Configure security scanning behavior
+    security_scan_enabled:
+      description: "Enable security vulnerability scanning with Trivy"
+      type: boolean
+      default: "true"
+    security_fail_on_critical:
+      description: "Fail the pipeline if critical vulnerabilities are found"
+      type: boolean
+      default: "false"
+    security_sbom_enabled:
+      description: "Generate Software Bill of Materials (SBOM)"
+      type: boolean
+      default: "true"
     # input_section_name- Docker Registry 1 Config
     # input_section_desc- Note that you can configure more than 3 by overriding
     freight_docker_url_1:
@@ -88,6 +102,7 @@ spec:
 # Begin CI pipeline jobs
 stages:
   - build
+  - security  # New stage for security scanning
   - release
 
 variables:
@@ -95,6 +110,9 @@ variables:
   DOCKER_RELEASE_PATH: "$[[ inputs.docker_release_path ]]"
   GITLAB_DOMAIN: "$[[ inputs.gitlab_domain ]]"
   GITLAB_TOKEN: "$[[ inputs.gitlab_token ]]"
+  SECURITY_SCAN_ENABLED: "$[[ inputs.security_scan_enabled ]]"
+  SECURITY_FAIL_ON_CRITICAL: "$[[ inputs.security_fail_on_critical ]]"
+  SECURITY_SBOM_ENABLED: "$[[ inputs.security_sbom_enabled ]]"
 
   DOCKER_HOST: "tcp://docker:2376"
   DOCKER_TLS_VERIFY: "1"
@@ -140,7 +158,7 @@ build-image:
   script:
     - |
       set -euo pipefail
-      ANY_PUSHED=false   # <— initialize so -u doesn’t explode
+      ANY_PUSHED=false   # <— initialize so -u doesn't explode
 
       echo "Starting image build using buildx..."
       docker buildx build \
@@ -150,6 +168,9 @@ build-image:
         --secret id=gitlab_token,env=CI_JOB_TOKEN \
         --output type=docker \
         -f Dockerfile .
+
+      # Save the image for security scanning
+      docker save -o image.tar "$CI_PROJECT_PATH:$CI_COMMIT_TAG"
 
       if [[ -n "${freight_docker_override:-}" ]]; then
         echo "Using overridden registry config."
@@ -203,17 +224,149 @@ build-image:
       {
         echo "BUILT_IMAGES=${ANY_PUSHED}"
       } > release_hints_images.env
+  artifacts:
+    reports:
+      dotenv: release_hints_images.env
+    paths:
+      - image.tar  # Save for security scanning
+    expire_in: 1 hour
   rules:
     - if: '$CI_COMMIT_TAG'
       when: always
 
+# New security scanning job
+security-scan:
+  stage: security
+  image:
+    name: docker.jcr.pcfae.com/prplanit/stagefreight:latest
+    entrypoint: [""]
+  services:
+    - name: docker.jcr.pcfae.com/docker:24.0.5-dind
+      alias: docker
+  needs: ["build-image"]
+  before_script:
+    - |
+      if [ "$SECURITY_SCAN_ENABLED" != "true" ]; then
+        echo "Security scanning disabled. Skipping..."
+        exit 0
+      fi
+    - apk add --no-cache curl jq bash wget tar
+    - |
+      # Install Trivy
+      export TRIVY_VERSION=$(curl -s "https://api.github.com/repos/aquasecurity/trivy/releases/latest" | jq -r '.tag_name')
+      wget -qO - https://github.com/aquasecurity/trivy/releases/download/${TRIVY_VERSION}/trivy_${TRIVY_VERSION#v}_Linux-64bit.tar.gz | tar -xz -C /usr/local/bin trivy
+      chmod +x /usr/local/bin/trivy
+    - |
+      # Install Syft for SBOM if enabled
+      if [ "$SECURITY_SBOM_ENABLED" = "true" ]; then
+        curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+      fi
+    - |
+      # Load the image
+      docker load -i image.tar
+  script:
+    - |
+      if [ "$SECURITY_SCAN_ENABLED" != "true" ]; then
+        exit 0
+      fi
+
+      mkdir -p security-reports
+      IMAGE_TAG="$CI_PROJECT_PATH:$CI_COMMIT_TAG"
+
+      echo "🔍 Running security scan on: ${IMAGE_TAG}"
+
+      # Run Trivy scan
+      trivy image \
+        --exit-code 0 \
+        --format json \
+        --output security-reports/trivy-report.json \
+        ${IMAGE_TAG}
+
+      # Generate table format for readability
+      trivy image \
+        --exit-code 0 \
+        --format table \
+        --output security-reports/trivy-report.txt \
+        ${IMAGE_TAG}
+
+      # Generate SARIF for GitLab integration
+      trivy image \
+        --exit-code 0 \
+        --format sarif \
+        --output security-reports/trivy-report.sarif \
+        ${IMAGE_TAG}
+
+      # Generate SBOM if enabled
+      if [ "$SECURITY_SBOM_ENABLED" = "true" ]; then
+        echo "📦 Generating Software Bill of Materials..."
+        syft ${IMAGE_TAG} \
+          --output spdx-json=security-reports/sbom.spdx.json \
+          --output cyclonedx-json=security-reports/sbom.cyclonedx.json
+      fi
+
+      # Create security summary
+      cat > security-reports/security-summary.md << EOF
+      ## 🔒 Security Scan Results
+
+      **Image:** \`${IMAGE_TAG}\`
+      **Scan Date:** $(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+      ### Vulnerability Summary
+      EOF
+
+      CRITICAL=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' security-reports/trivy-report.json || echo "0")
+      HIGH=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity=="HIGH")] | length' security-reports/trivy-report.json || echo "0")
+      MEDIUM=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity=="MEDIUM")] | length' security-reports/trivy-report.json || echo "0")
+      LOW=$(jq '[.Results[].Vulnerabilities[]? | select(.Severity=="LOW")] | length' security-reports/trivy-report.json || echo "0")
+
+      echo "- **🔴 Critical:** ${CRITICAL}" >> security-reports/security-summary.md
+      echo "- **🟠 High:** ${HIGH}" >> security-reports/security-summary.md
+      echo "- **🟡 Medium:** ${MEDIUM}" >> security-reports/security-summary.md
+      echo "- **🟢 Low:** ${LOW}" >> security-reports/security-summary.md
+
+      # Create security badge info
+      if [ "$CRITICAL" -gt 0 ]; then
+        BADGE_COLOR="red"
+        BADGE_STATUS="critical"
+      elif [ "$HIGH" -gt 0 ]; then
+        BADGE_COLOR="orange"
+        BADGE_STATUS="high"
+      else
+        BADGE_COLOR="green"
+        BADGE_STATUS="passing"
+      fi
+
+      echo "SECURITY_BADGE_URL=https://img.shields.io/badge/security-${BADGE_STATUS}-${BADGE_COLOR}" > security-reports/badge.env
+
+      # Optionally fail on critical vulnerabilities
+      if [ "$SECURITY_FAIL_ON_CRITICAL" = "true" ] && [ "$CRITICAL" -gt 0 ]; then
+        echo "❌ Critical vulnerabilities found! Failing pipeline."
+        trivy image --exit-code 1 --severity CRITICAL ${IMAGE_TAG}
+      fi
+  artifacts:
+    reports:
+      container_scanning: security-reports/trivy-report.sarif
+    paths:
+      - security-reports/
+    expire_in: 30 days
+  allow_failure: true
+  rules:
+    - if: '$CI_COMMIT_TAG && $SECURITY_SCAN_ENABLED == "true"'
+      when: always
+    - when: never
+
+# Enhanced generate_release_notes with security info
 generate_release_notes:
   stage: release
   image: docker.jcr.pcfae.com/prplanit/stagefreight:latest
-  needs: [export_dependencies, build-image]
+  needs:
+    - export_dependencies
+    - build-image
+    - job: security-scan
+      optional: true  # Make it optional so it doesn't fail if security scan is disabled
   only: [tags]
   artifacts:
-    paths: 
+    paths:
       - release.md
       - assets/
       - scripts/
@@ -225,7 +378,29 @@ generate_release_notes:
     - cat ./scripts/gitlab/generate-release_notes.sh
     - chmod +x scripts/gitlab/generate-release_notes.sh
   script:
-    - scripts/gitlab/generate-release_notes.sh > release.md
+    - scripts/gitlab/generate-release_notes.sh > release_base.md
+    - |
+      # Add security information if available
+      if [ -f security-reports/security-summary.md ]; then
+        cat release_base.md > release.md
+        echo "" >> release.md
+        cat security-reports/security-summary.md >> release.md
+        
+        if [ "$SECURITY_SBOM_ENABLED" = "true" ]; then
+          echo "" >> release.md
+          echo "### 📋 Software Bill of Materials" >> release.md
+          echo "SBOM files are available as release assets in SPDX and CycloneDX formats." >> release.md
+        fi
+        
+        # Add security badge
+        if [ -f security-reports/badge.env ]; then
+          source security-reports/badge.env
+          echo "" >> release.md
+          echo "![Security Status](${SECURITY_BADGE_URL})" >> release.md
+        fi
+      else
+        cp release_base.md release.md
+      fi
     - test -s release.md || (echo "❌ release.md is empty!" && exit 1)
 
 create-release:
@@ -374,11 +549,22 @@ create-release:
           post_link_if_missing "${reg_name} ${CI_COMMIT_TAG}" "$link" "image"
         done
       fi
+
+      # 3) Add security report links if available
+      if [ -f security-reports/sbom.spdx.json ]; then
+        post_link_if_missing "SBOM (SPDX)" "$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_TAG/raw/security-reports/sbom.spdx.json?job=security-scan" "other"
+      fi
+      if [ -f security-reports/sbom.cyclonedx.json ]; then
+        post_link_if_missing "SBOM (CycloneDX)" "$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_TAG/raw/security-reports/sbom.cyclonedx.json?job=security-scan" "other"
+      fi
+      if [ -f security-reports/trivy-report.json ]; then
+        post_link_if_missing "Security Scan Report" "$CI_PROJECT_URL/-/jobs/artifacts/$CI_COMMIT_TAG/raw/security-reports/trivy-report.json?job=security-scan" "other"
+      fi
       # ---------------------------------------------------------------------------
 
 update-release-badge:
   artifacts:
-    paths: 
+    paths:
       - release.md
       - assets/badge-release-generic.svg
       - scripts/
