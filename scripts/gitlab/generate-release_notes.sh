@@ -158,7 +158,7 @@ fi
 # -------------------------------------------------------------------
 
 cat <<EOF
-# AntParade GitOps 🐜 — ${PROJECT_NAME}:${RELEASE}
+# PrecisionPlanIT 🌎 — ${PROJECT_NAME}:${RELEASE}
 
 # Release Highlights
 ${TAG_MESSAGE:-}
