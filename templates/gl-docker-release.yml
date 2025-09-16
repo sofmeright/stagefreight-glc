@@ -16,6 +16,20 @@ spec:
     freight_pipeline_status_file:
       description: 'Path to store "badge-release_status.svg" within parent pipelines repo.'
       default: "assets/badge-release_status.svg"
+    # input_section_name- Security Scanning Settings
+    # input_section_desc- Configure security scanning and attestation behavior
+    security_scan_enabled:
+      description: "Enable security vulnerability scanning with Trivy"
+      type: boolean
+      default: "true"
+    security_sbom_enabled:
+      description: "Generate and upload Software Bill of Materials (SBOM)"
+      type: boolean
+      default: "true"
+    security_fail_on_critical:
+      description: "Fail the pipeline if critical vulnerabilities are found"
+      type: boolean
+      default: "false"
     # input_section_name- Docker Registry 1 Config
     # input_section_desc- Note that you can configure more than 3 by overriding
     freight_docker_url_1:
@@ -36,6 +50,10 @@ spec:
       default: ""
     freight_docker_registry_1:
       description: "A friendly name used in logs to identify this registry."
+      type: string
+      default: ""
+    freight_docker_branch_1:
+      description: "Optional: Only push to this registry on specified branch (e.g., main)"
       type: string
       default: ""
     # input_section_name- Docker Registry 2 Config
@@ -60,6 +78,10 @@ spec:
       description: "A friendly name used in logs to identify this registry."
       type: string
       default: ""
+    freight_docker_branch_2:
+      description: "Optional: Only push to this registry on specified branch (e.g., develop)"
+      type: string
+      default: ""
     # input_section_name- Docker Registry 3 Config
     # input_section_desc- Below this section are examples to configure more registries
     freight_docker_url_3:
@@ -82,12 +104,17 @@ spec:
       description: "A friendly name used in logs to identify this registry."
       type: string
       default: ""
+    freight_docker_branch_3:
+      description: "Optional: Only push to this registry on specified branch (e.g., staging)"
+      type: string
+      default: ""
 
 ---
 
 # Begin CI pipeline jobs
 stages:
   - build
+  - security
   - release
 
 variables:
@@ -95,6 +122,9 @@ variables:
   DOCKER_RELEASE_PATH: "$[[ inputs.docker_release_path ]]"
   GITLAB_DOMAIN: "$[[ inputs.gitlab_domain ]]"
   GITLAB_TOKEN: "$[[ inputs.gitlab_token ]]"
+  SECURITY_SCAN_ENABLED: "$[[ inputs.security_scan_enabled ]]"
+  SECURITY_SBOM_ENABLED: "$[[ inputs.security_sbom_enabled ]]"
+  SECURITY_FAIL_ON_CRITICAL: "$[[ inputs.security_fail_on_critical ]]"
 
   DOCKER_HOST: "tcp://docker:2376"
   DOCKER_TLS_VERIFY: "1"
@@ -108,23 +138,29 @@ variables:
   freight_docker_pass_1: $[[ inputs.freight_docker_pass_1 ]]
   freight_docker_path_1: $[[ inputs.freight_docker_path_1 ]]
   freight_docker_registry_1: $[[ inputs.freight_docker_registry_1 ]]
+  freight_docker_branch_1: $[[ inputs.freight_docker_branch_1 ]]
 
   freight_docker_url_2: $[[ inputs.freight_docker_url_2 ]]
   freight_docker_user_2: $[[ inputs.freight_docker_user_2 ]]
   freight_docker_pass_2: $[[ inputs.freight_docker_pass_2 ]]
   freight_docker_path_2: $[[ inputs.freight_docker_path_2 ]]
   freight_docker_registry_2: $[[ inputs.freight_docker_registry_2 ]]
+  freight_docker_branch_2: $[[ inputs.freight_docker_branch_2 ]]
 
   freight_docker_url_3: $[[ inputs.freight_docker_url_3 ]]
   freight_docker_user_3: $[[ inputs.freight_docker_user_3 ]]
   freight_docker_pass_3: $[[ inputs.freight_docker_pass_3 ]]
   freight_docker_path_3: $[[ inputs.freight_docker_path_3 ]]
   freight_docker_registry_3: $[[ inputs.freight_docker_registry_3 ]]
+  freight_docker_branch_3: $[[ inputs.freight_docker_branch_3 ]]
 
 build-image:
   artifacts:
     reports:
       dotenv: release_hints_images.env
+    paths:
+      - docker-image.tar
+    expire_in: 2 hours
   image:
     name: docker.jcr.pcfae.com/prplanit/stagefreight:latest
     entrypoint: [""]
@@ -137,11 +173,13 @@ build-image:
     - echo "Setting up Docker TLS context for buildx..."
     - docker context create tls-context --docker "host=$DOCKER_HOST,ca=$DOCKER_CERT_PATH/ca.pem,cert=$DOCKER_CERT_PATH/cert.pem,key=$DOCKER_CERT_PATH/key.pem"
     - docker buildx create --name stagefreight-builder --use tls-context
+    - apk add --no-cache cosign
   script:
     - |
       set -euo pipefail
-      ANY_PUSHED=false   # <— initialize so -u doesn’t explode
-
+      ANY_PUSHED=false
+      CURRENT_BRANCH="${CI_COMMIT_BRANCH:-$CI_COMMIT_REF_NAME}"
+      
       echo "Starting image build using buildx..."
       docker buildx build \
         --platform linux/amd64 \
@@ -150,6 +188,9 @@ build-image:
         --secret id=gitlab_token,env=CI_JOB_TOKEN \
         --output type=docker \
         -f Dockerfile .
+      
+      # Save image for security scanning
+      docker save "$CI_PROJECT_PATH:$CI_COMMIT_TAG" -o docker-image.tar
 
       if [[ -n "${freight_docker_override:-}" ]]; then
         echo "Using overridden registry config."
@@ -162,13 +203,20 @@ build-image:
           pass=$(yq -r ".[$i].pass" /tmp/override_registry_list.yml)
           path=$(yq -r ".[$i].path" /tmp/override_registry_list.yml)
           registry_name=$(yq -r ".[$i].registry // \"registry_${i}\"" /tmp/override_registry_list.yml)
+          branch=$(yq -r ".[$i].branch // \"\"" /tmp/override_registry_list.yml)
+          
+          # Branch filtering
+          if [[ -n "$branch" && "$branch" != "$CURRENT_BRANCH" ]]; then
+            echo "Skipping $registry_name: branch '$CURRENT_BRANCH' doesn't match required '$branch'"
+            continue
+          fi
 
           echo "Pushing to $registry_name ($url)..."
           echo "$pass" | docker login -u "$user" --password-stdin "$url"
           docker tag "$CI_PROJECT_PATH:$CI_COMMIT_TAG" "$url/$path:$CI_COMMIT_TAG"
-          docker push "$url/$path:$CI_COMMIT_TAG" && ANY_PUSHED=true    # <—
+          docker push "$url/$path:$CI_COMMIT_TAG" && ANY_PUSHED=true
           docker tag "$CI_PROJECT_PATH:$CI_COMMIT_TAG" "$url/$path:latest"
-          docker push "$url/$path:latest" && ANY_PUSHED=true            # <—
+          docker push "$url/$path:latest" && ANY_PUSHED=true
         done
       else
         echo "Using up to 3 registry input slots..."
@@ -178,24 +226,32 @@ build-image:
           pass_var="freight_docker_pass_$i"
           path_var="freight_docker_path_$i"
           registry_var="freight_docker_registry_$i"
+          branch_var="freight_docker_branch_$i"
 
           url="${!url_var:-}"
           user="${!user_var:-}"
           pass="${!pass_var:-}"
           path="${!path_var:-}"
           registry="${!registry_var:-registry_$i}"
+          branch="${!branch_var:-}"
 
           if [[ -z "$url" || -z "$user" || -z "$pass" ]]; then
             echo "Skipping registry slot #$i: missing URL/user/pass"
+            continue
+          fi
+          
+          # Branch filtering
+          if [[ -n "$branch" && "$branch" != "$CURRENT_BRANCH" ]]; then
+            echo "Skipping $registry: branch '$CURRENT_BRANCH' doesn't match required '$branch'"
             continue
           fi
 
           echo "Pushing to $registry ($url)..."
           echo "$pass" | docker login -u "$user" --password-stdin "$url"
           docker tag "$CI_PROJECT_PATH:$CI_COMMIT_TAG" "$url/$path:$CI_COMMIT_TAG"
-          docker push "$url/$path:$CI_COMMIT_TAG" && ANY_PUSHED=true    # <—
+          docker push "$url/$path:$CI_COMMIT_TAG" && ANY_PUSHED=true
           docker tag "$CI_PROJECT_PATH:$CI_COMMIT_TAG" "$url/$path:latest"
-          docker push "$url/$path:latest" && ANY_PUSHED=true            # <—
+          docker push "$url/$path:latest" && ANY_PUSHED=true
         done
       fi
 
@@ -207,10 +263,314 @@ build-image:
     - if: '$CI_COMMIT_TAG'
       when: always
 
+security-scan:
+  stage: security
+  image: docker.jcr.pcfae.com/prplanit/stagefreight:latest
+  needs: [build-image]
+  services:
+    - name: docker.jcr.pcfae.com/docker:24.0.5-dind
+      alias: docker
+  artifacts:
+    reports:
+      dotenv: security_scan.env
+    paths:
+      - security-scan.json
+      - sbom.spdx.json
+      - sbom.cyclonedx.json
+      - vulnerability-report.sarif
+    expire_in: 1 week
+  before_script:
+    - echo "Setting up Docker and security tools..."
+    - docker context create tls-context --docker "host=$DOCKER_HOST,ca=$DOCKER_CERT_PATH/ca.pem,cert=$DOCKER_CERT_PATH/cert.pem,key=$DOCKER_CERT_PATH/key.pem"
+    - docker buildx create --name security-scanner --use tls-context
+    - apk add --no-cache curl jq cosign syft
+    - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+  script:
+    - |
+      set -euo pipefail
+      
+      # Skip if security scanning is disabled
+      if [[ "${SECURITY_SCAN_ENABLED}" != "true" ]]; then
+        echo "Security scanning disabled, skipping..."
+        echo "SECURITY_STATUS=skipped" > security_scan.env
+        exit 0
+      fi
+      
+      # Load the Docker image
+      docker load -i docker-image.tar
+      
+      # Run Trivy vulnerability scan
+      echo "Running vulnerability scan with Trivy..."
+      trivy image --format json --output security-scan.json "$CI_PROJECT_PATH:$CI_COMMIT_TAG"
+      trivy image --format sarif --output vulnerability-report.sarif "$CI_PROJECT_PATH:$CI_COMMIT_TAG"
+      trivy image --format table "$CI_PROJECT_PATH:$CI_COMMIT_TAG"
+      
+      # Generate SBOM if enabled
+      if [[ "${SECURITY_SBOM_ENABLED}" == "true" ]]; then
+        echo "Generating Software Bill of Materials..."
+        syft "$CI_PROJECT_PATH:$CI_COMMIT_TAG" -o spdx-json > sbom.spdx.json
+        syft "$CI_PROJECT_PATH:$CI_COMMIT_TAG" -o cyclonedx-json > sbom.cyclonedx.json
+      fi
+      
+      # Check for critical vulnerabilities
+      CRITICAL_COUNT=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' security-scan.json)
+      HIGH_COUNT=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH")] | length' security-scan.json)
+      
+      echo "Found $CRITICAL_COUNT critical and $HIGH_COUNT high vulnerabilities"
+      
+      # Generate security status
+      if [[ "$CRITICAL_COUNT" -gt 0 ]]; then
+        SECURITY_STATUS="critical"
+        SECURITY_COLOR="#e05d44"
+      elif [[ "$HIGH_COUNT" -gt 0 ]]; then
+        SECURITY_STATUS="warning"
+        SECURITY_COLOR="#dfb317"
+      else
+        SECURITY_STATUS="passed"
+        SECURITY_COLOR="#4c1"
+      fi
+      
+      # Export security scan results
+      {
+        echo "SECURITY_STATUS=$SECURITY_STATUS"
+        echo "SECURITY_COLOR=$SECURITY_COLOR"
+        echo "CRITICAL_VULNS=$CRITICAL_COUNT"
+        echo "HIGH_VULNS=$HIGH_COUNT"
+        echo "SBOM_GENERATED=${SECURITY_SBOM_ENABLED}"
+      } > security_scan.env
+      
+      # Fail if critical vulnerabilities found and configured to fail
+      if [[ "${SECURITY_FAIL_ON_CRITICAL}" == "true" && "$CRITICAL_COUNT" -gt 0 ]]; then
+        echo "❌ Critical vulnerabilities found, failing pipeline as configured"
+        exit 1
+      fi
+  rules:
+    - if: '$CI_COMMIT_TAG'
+      when: always
+
+upload-security-results:
+  stage: security
+  image: docker.jcr.pcfae.com/prplanit/stagefreight:latest
+  needs: [build-image, security-scan]
+  services:
+    - name: docker.jcr.pcfae.com/docker:24.0.5-dind
+      alias: docker
+  before_script:
+    - echo "Setting up Docker and attestation tools..."
+    - docker context create tls-context --docker "host=$DOCKER_HOST,ca=$DOCKER_CERT_PATH/ca.pem,cert=$DOCKER_CERT_PATH/cert.pem,key=$DOCKER_CERT_PATH/key.pem"
+    - docker buildx create --name attestation-uploader --use tls-context
+    - apk add --no-cache curl jq cosign
+    - docker load -i docker-image.tar
+  script:
+    - |
+      set -euo pipefail
+      
+      # Skip if no security results
+      if [[ ! -f security-scan.json ]]; then
+        echo "No security scan results to upload"
+        exit 0
+      fi
+      
+      # Function to detect registry vendor
+      detect_vendor() {
+        local url="$1" reg_name="$2"
+        local lhost="$(echo "${url#*://}" | cut -d/ -f1 | tr '[:upper:]' '[:lower:]')"
+        local lname="$(echo "$reg_name" | tr '[:upper:]' '[:lower:]')"
+        
+        if [[ "$lhost" == *"docker.io"* || "$lname" == *"dockerhub"* || "$lname" == *"docker hub"* ]]; then
+          echo "dockerhub"
+        elif [[ "$lhost" == *"ghcr.io"* ]]; then
+          echo "ghcr"
+        elif [[ "$lhost" == *"quay"* ]]; then
+          echo "quay"
+        elif [[ "$lhost" == *"jfrog"* || "$lhost" == *"artifactory"* || "$lhost" == *"jcr"* ]]; then
+          echo "jfrog"
+        elif [[ "$lhost" == *"gitlab"* ]]; then
+          echo "gitlab"
+        else
+          echo "generic"
+        fi
+      }
+      
+      # Function to upload security results based on registry type
+      upload_to_registry() {
+        local vendor="$1" url="$2" path="$3" user="$4" pass="$5"
+        local image_ref="$url/$path:$CI_COMMIT_TAG"
+        
+        echo "Uploading security results to $vendor registry..."
+        
+        case "$vendor" in
+          dockerhub)
+            # Try Docker Hub attestations via buildx
+            echo "Attempting Docker Hub attestation upload..."
+            echo "$pass" | docker login -u "$user" --password-stdin "$url"
+            
+            # Try buildx imagetools for attestation
+            if docker buildx imagetools create \
+                --append --attach "sbom=@sbom.spdx.json;type=application/spdx+json" \
+                --append --attach "vuln=@security-scan.json;type=application/vnd.docker.scan-result+json" \
+                "$image_ref" 2>/dev/null; then
+              echo "✅ Docker Hub attestations uploaded via buildx"
+            else
+              # Fallback to cosign
+              echo "ℹ️ Buildx attestation failed, trying cosign..."
+              COSIGN_EXPERIMENTAL=1 cosign attest \
+                --predicate sbom.spdx.json \
+                --type spdxjson \
+                "$image_ref" 2>/dev/null || echo "ℹ️ Cosign attestation skipped"
+            fi
+            ;;
+            
+          ghcr)
+            # GitHub Container Registry with cosign
+            echo "Uploading attestations to GHCR..."
+            echo "$pass" | docker login -u "$user" --password-stdin "$url"
+            COSIGN_EXPERIMENTAL=1 cosign attest \
+              --predicate sbom.spdx.json \
+              --type spdxjson \
+              "$image_ref" 2>/dev/null || echo "ℹ️ GHCR attestation skipped"
+            ;;
+            
+          quay)
+            # Try Quay security API (enterprise feature)
+            echo "Attempting Quay security API upload..."
+            response=$(curl -s -w "\n%{http_code}" -X PUT \
+              "https://${url#*://}/api/v1/repository/$path/manifest/$CI_COMMIT_TAG/security" \
+              -H "Authorization: Bearer $pass" \
+              -H "Content-Type: application/json" \
+              -d @security-scan.json 2>/dev/null)
+            http_code=$(echo "$response" | tail -n1)
+            
+            if [[ "$http_code" == "200" || "$http_code" == "201" ]]; then
+              echo "✅ Quay security scan uploaded"
+            else
+              echo "ℹ️ Quay API not available, trying cosign..."
+              echo "$pass" | docker login -u "$user" --password-stdin "$url"
+              COSIGN_EXPERIMENTAL=1 cosign attest \
+                --predicate sbom.spdx.json \
+                --type spdxjson \
+                "$image_ref" 2>/dev/null || echo "ℹ️ Attestation skipped for Quay"
+            fi
+            ;;
+            
+          jfrog)
+            # Try JFrog Xray API (enterprise feature)
+            echo "Attempting JFrog Xray scan trigger..."
+            response=$(curl -s -w "\n%{http_code}" -X POST \
+              "https://${url#*://}/xray/api/v1/scanArtifact" \
+              -H "Authorization: Bearer $pass" \
+              -H "Content-Type: application/json" \
+              -d "{\"componentID\":\"docker://$path:$CI_COMMIT_TAG\"}" 2>/dev/null)
+            http_code=$(echo "$response" | tail -n1)
+            
+            if [[ "$http_code" == "200" || "$http_code" == "202" ]]; then
+              echo "✅ JFrog Xray scan triggered"
+            else
+              echo "ℹ️ Xray not available, adding metadata properties..."
+              curl -X PUT "https://${url#*://}/api/storage/$path/$CI_COMMIT_TAG/properties" \
+                -H "Authorization: Bearer $pass" \
+                -d "security.scanned=true;security.scan_date=$(date -I);security.critical=$CRITICAL_VULNS;security.high=$HIGH_VULNS" \
+                2>/dev/null || echo "ℹ️ Metadata upload skipped for JFrog"
+            fi
+            ;;
+            
+          gitlab)
+            # Try GitLab security dashboard (Ultimate tier)
+            echo "Attempting GitLab security dashboard upload..."
+            if curl -f --request POST \
+                --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+                --form "report_type=container_scanning" \
+                --form "report=@vulnerability-report.sarif" \
+                "$CI_API_V4_URL/projects/$CI_PROJECT_ID/security/findings" 2>/dev/null; then
+              echo "✅ GitLab security dashboard updated"
+            else
+              echo "ℹ️ Security dashboard not available, uploading as package..."
+              curl --request PUT \
+                --header "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+                --upload-file sbom.spdx.json \
+                "$CI_API_V4_URL/projects/$CI_PROJECT_ID/packages/generic/sbom/$CI_COMMIT_TAG/sbom.spdx.json" \
+                2>/dev/null || echo "ℹ️ Package upload skipped for GitLab"
+            fi
+            ;;
+            
+          *)
+            # Generic OCI registry - try cosign
+            echo "Attempting generic attestation upload..."
+            echo "$pass" | docker login -u "$user" --password-stdin "$url"
+            COSIGN_EXPERIMENTAL=1 cosign attest \
+              --predicate sbom.spdx.json \
+              --type spdxjson \
+              "$image_ref" 2>/dev/null || echo "ℹ️ Registry doesn't support attestations"
+            ;;
+        esac
+      }
+      
+      CURRENT_BRANCH="${CI_COMMIT_BRANCH:-$CI_COMMIT_REF_NAME}"
+      
+      # Process registries from override config
+      if [[ -n "${freight_docker_override:-}" ]]; then
+        echo "$freight_docker_override" | yq -P '.' > /tmp/override_registry_list.yml
+        count=$(yq '. | length' /tmp/override_registry_list.yml)
+        
+        for i in $(seq 0 $((count - 1))); do
+          url=$(yq -r ".[$i].url" /tmp/override_registry_list.yml)
+          user=$(yq -r ".[$i].user" /tmp/override_registry_list.yml)
+          pass=$(yq -r ".[$i].pass" /tmp/override_registry_list.yml)
+          path=$(yq -r ".[$i].path" /tmp/override_registry_list.yml)
+          registry_name=$(yq -r ".[$i].registry // \"registry_${i}\"" /tmp/override_registry_list.yml)
+          branch=$(yq -r ".[$i].branch // \"\"" /tmp/override_registry_list.yml)
+          
+          # Skip if branch doesn't match
+          if [[ -n "$branch" && "$branch" != "$CURRENT_BRANCH" ]]; then
+            continue
+          fi
+          
+          vendor=$(detect_vendor "$url" "$registry_name")
+          upload_to_registry "$vendor" "$url" "$path" "$user" "$pass"
+        done
+      else
+        # Process 3-slot registries
+        for i in 1 2 3; do
+          url_var="freight_docker_url_$i"
+          user_var="freight_docker_user_$i"
+          pass_var="freight_docker_pass_$i"
+          path_var="freight_docker_path_$i"
+          registry_var="freight_docker_registry_$i"
+          branch_var="freight_docker_branch_$i"
+          
+          url="${!url_var:-}"
+          user="${!user_var:-}"
+          pass="${!pass_var:-}"
+          path="${!path_var:-}"
+          registry="${!registry_var:-registry_$i}"
+          branch="${!branch_var:-}"
+          
+          if [[ -z "$url" || -z "$user" || -z "$pass" ]]; then
+            continue
+          fi
+          
+          # Skip if branch doesn't match
+          if [[ -n "$branch" && "$branch" != "$CURRENT_BRANCH" ]]; then
+            continue
+          fi
+          
+          vendor=$(detect_vendor "$url" "$registry")
+          upload_to_registry "$vendor" "$url" "$path" "$user" "$pass"
+        done
+      fi
+  rules:
+    - if: '$CI_COMMIT_TAG && $SECURITY_SCAN_ENABLED == "true"'
+      when: on_success
+    - when: never
+
 generate_release_notes:
   stage: release
   image: docker.jcr.pcfae.com/prplanit/stagefreight:latest
-  needs: [export_dependencies, build-image]
+  needs:
+    - export_dependencies
+    - build-image
+    - job: security-scan
+      optional: true
   only: [tags]
   artifacts:
     paths: 
